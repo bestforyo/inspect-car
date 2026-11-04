@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
+import { CosStorageService } from './cos-storage.service';
 
 interface ReportRow { id: string; status: string; current_version: number; }
 interface VersionRow { id: string; version_number: number; snapshot_json: unknown; published_at: Date | null; }
@@ -13,7 +14,7 @@ function parseSnapshot(value: unknown): Record<string, any> {
 
 @Injectable()
 export class ReportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly cos: CosStorageService) {}
 
   async publish(tenantId: string, reportId: string, actorId: string) {
     return this.prisma.$transaction(async (tx) => {
@@ -127,11 +128,19 @@ export class ReportService {
     const share = rows[0];
     if (!share) throw new UnauthorizedException('分享链接无效或已失效');
     const snapshot = parseSnapshot(share.snapshot_json);
-    const photos = Array.isArray(snapshot.photos) ? snapshot.photos.map((p: Record<string, any>) => ({
-      photoId: p.photoId, itemCode: p.itemCode ?? null, mimeType: p.mimeType ?? null,
-      widthPx: p.widthPx ?? null, heightPx: p.heightPx ?? null, capturedAt: p.capturedAt ?? null,
-      thumbnailAvailable: false, mediumAvailable: false, originalAvailable: false,
-    })) : [];
+    const photos = await Promise.all((Array.isArray(snapshot.photos) ? snapshot.photos : []).map(async (p: Record<string, any>) => {
+      const key = p.thumbnailObjectKey || p.mediumObjectKey || p.originalObjectKey;
+      let imageUrl: string | null = null;
+      if (key && this.cos.isConfigured()) {
+        try { imageUrl = await this.cos.signedUrl(key, 'GET', 60); } catch { imageUrl = null; }
+      }
+      return {
+        photoId: p.photoId, itemCode: p.itemCode ?? null, mimeType: p.mimeType ?? null,
+        widthPx: p.widthPx ?? null, heightPx: p.heightPx ?? null, capturedAt: p.capturedAt ?? null,
+        imageUrl, imageUrlExpiresIn: imageUrl ? 60 : null,
+        thumbnailAvailable: Boolean(p.thumbnailObjectKey),
+      };
+    }));
     const t = snapshot.template;
     const template = t ? {
       templateName: t.templateName, vehicleType: t.vehicleType, inspectionScope: t.inspectionScope,
@@ -146,7 +155,7 @@ export class ReportService {
       reportVersion: share.version_number, approvedAt: snapshot.approvedAt ?? null,
       vehicle: snapshot.vehicle ?? null, template,
       records: Array.isArray(snapshot.records) ? snapshot.records : [],
-      photos, photoDelivery: 'not_configured',
+      photos, photoDelivery: this.cos.isConfigured() ? 'short_lived_signed_url' : 'not_configured',
     };
   }
 }
