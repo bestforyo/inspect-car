@@ -17,14 +17,14 @@ export class TenantMembershipController {
   constructor(private readonly memberships: TenantMembershipService) {}
 
   @Get('members')
-  @RequirePermissions('tenant:members:manage')
+  @RequirePermissions('tenant:members:read')
   @ApiOperation({ summary: 'List members and assigned roles in this institution' })
   listMembers(@Param('tenantId') tenantId: string) {
     return this.memberships.listMembers(tenantId);
   }
 
   @Get('roles')
-  @RequirePermissions('tenant:members:manage')
+  @RequirePermissions('tenant:roles:read')
   @ApiOperation({ summary: 'List tenant-local roles and their permissions' })
   listRoles(@Param('tenantId') tenantId: string) {
     return this.memberships.listRoles(tenantId);
