@@ -1,4 +1,5 @@
 import { inspectionCatalog, inspectionStates, CatalogItem } from "../../data/inspection-catalog";
+import { updateOrder } from "../../services/order-store";
 
 type CheckItem = CatalogItem & { state: string; note: string; photos: string[] };
 type CheckGroup = { id: string; title: string; sourceCount: number; items: CheckItem[] };
@@ -6,6 +7,7 @@ const DRAFT_KEY = "inspect-car-current-draft-v1";
 
 Page({
   data: {
+    orderId: "",
     business: "passenger",
     kind: "used",
     active: "major",
@@ -21,15 +23,16 @@ Page({
 
   onLoad(query: Record<string, string | undefined>) {
     const business = query.business || "passenger";
+    const orderId = query.orderId || "";
     const kind = query.kind || "used";
-    const saved = wx.getStorageSync(DRAFT_KEY) as { business?: string; kind?: string; groups?: CheckGroup[] } | undefined;
+    const saved = wx.getStorageSync(orderId ? "inspect-car-draft-" + orderId : DRAFT_KEY) as { business?: string; kind?: string; groups?: CheckGroup[] } | undefined;
     const fresh = inspectionCatalog.map(group => ({
       ...group,
       items: group.items.map(item => ({ ...item, state: "待检测", note: "", photos: [] as string[] }))
     }));
     const groups = saved?.groups?.length ? saved.groups : fresh;
     const total = groups.reduce((sum, group) => sum + group.items.length, 0);
-    this.setData({ business: saved?.business || business, kind: saved?.kind || kind, groups, total }, () => this.refreshView());
+    this.setData({ orderId, business: saved?.business || business, kind: saved?.kind || kind, groups, total }, () => this.refreshView());
   },
 
   onHide() { this.saveDraft(); },
@@ -37,7 +40,7 @@ Page({
 
   saveDraft() {
     if (!this.data.groups.length) return;
-    wx.setStorageSync(DRAFT_KEY, {
+    wx.setStorageSync(this.data.orderId ? "inspect-car-draft-" + this.data.orderId : DRAFT_KEY, {
       business: this.data.business,
       kind: this.data.kind,
       groups: this.data.groups,
