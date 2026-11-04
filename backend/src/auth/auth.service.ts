@@ -91,7 +91,7 @@ export class AuthService {
     if (!row || row.user_status !== 'active' || row.membership_status !== 'active' || row.tenant_status !== 'active') {
       throw new UnauthorizedException('No active membership for this institution');
     }
-    const grants = await tx.$queryRaw<Array<{ role_code: string; permission_code: string }>>`
+    const grants: Array<{ role_code: string; permission_code: string | null }> = await tx.$queryRaw`
       SELECT r.code AS role_code, rp.permission_code
       FROM user_roles ur
       JOIN roles r ON r.tenant_id = ur.tenant_id AND r.id = ur.role_id
@@ -102,8 +102,8 @@ export class AuthService {
       sub: row.user_id,
       membershipId: row.membership_id,
       tenantId: row.tenant_id,
-      roles: [...new Set(grants.map((grant) => grant.role_code))],
-      permissions: [...new Set(grants.map((grant) => grant.permission_code).filter((v): v is string => Boolean(v)))],
+      roles: [...new Set<string>(grants.map((grant: { role_code: string; permission_code: string | null }) => grant.role_code))],
+      permissions: [...new Set<string>(grants.map((grant: { role_code: string; permission_code: string | null }) => grant.permission_code).filter((value): value is string => typeof value === 'string'))],
     };
   }
 
