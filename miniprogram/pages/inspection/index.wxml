@@ -1,0 +1,16 @@
+<view class="page inspect-page">
+  <view class="summary card"><view class="sum-title">现场检测记录</view><view class="muted">二手乘用车 · 检测草稿</view><view class="progress-row"><text>已完成 {{done}} / {{total}} 项</text><text class="blue">{{total ? (done/total*100).toFixed(0) : 0}}%</text></view><view class="track"><view class="fill" style="width:{{total ? done/total*100 : 0}}%"></view></view></view>
+  <scroll-view scroll-x class="tabs"><view class="tab {{active==='major'?'active':''}}" data-id="major" bindtap="switchGroup">重大事故 <text>59</text></view><view class="tab {{active==='water'?'active':''}}" data-id="water" bindtap="switchGroup">泡水 <text>29</text></view><view class="tab {{active==='fire'?'active':''}}" data-id="fire" bindtap="switchGroup">火烧 <text>8</text></view></scroll-view>
+  <block wx:for="{{groups}}" wx:key="id">
+    <view wx:if="{{active===item.id}}">
+      <view class="section-title">{{item.title}} <text class="muted small">{{item.items.length}} 个已录入原型项目</text></view>
+      <view class="check-card card" wx:for="{{item.items}}" wx:for-item="check" wx:key="id">
+        <view class="check-head"><text class="check-name">{{check.name}}</text><text class="state">{{check.state}}</text></view>
+        <scroll-view scroll-x class="state-scroll"><view class="state-row"><text wx:for="{{states}}" wx:for-item="s" wx:key="*this" class="state-chip {{check.state===s?'chosen':''}}" data-group="{{item.id}}" data-item="{{check.id}}" data-state="{{s}}" bindtap="selectState">{{s}}</text></view></scroll-view>
+        <view class="check-actions"><text class="muted note" data-group="{{item.id}}" data-item="{{check.id}}" bindtap="addNote">{{check.note || "＋ 添加文字说明"}}</text><text class="photo-action" bindtap="submit">＋ 照片（待接入）</text></view>
+      </view>
+    </view>
+  </block>
+  <button class="primary submit-btn" bindtap="submit">提交审核</button>
+  <view class="disclaimer">原型演示数据。检测项目数量及名称需对照竞品截图复核；风险结论须由经核验的规则计算。</view>
+</view>
