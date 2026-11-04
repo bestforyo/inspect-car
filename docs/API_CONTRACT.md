@@ -55,3 +55,14 @@ Order read endpoints require `tenant:orders:read`; order creation, record update
 - Photo upload, signed image delivery, rate limiting and PDF generation remain pending. The public response currently marks photo delivery as not configured; it does not fabricate image URLs.
 
 Publication and share mutations require `tenant:reports:publish` and `tenant:reports:share` respectively. The institution administrator is provisioned with both permissions. Public access does not accept a tenant ID or require a tenant JWT; edge/API rate limiting must be enabled before production exposure.
+
+
+## Inspection photo upload (COS)
+
+- `POST /api/v1/tenants/:tenantId/orders/:orderId/photos/upload-url` — requires `tenant:orders:manage`; accepts a record ID, MIME type and expected byte size. Returns a short-lived signed PUT URL for direct upload to a private Tencent COS bucket.
+- The mini program uploads bytes directly to COS using the returned URL and Content-Type header; COS credentials never leave the API.
+- `POST /api/v1/tenants/:tenantId/orders/:orderId/photos/:photoId/complete` — server-side HEAD verifies the object exists and that MIME type/size match before inserting the photo metadata and audit event.
+- Supported formats: JPEG, PNG, WebP; maximum 20 MiB. Uploads are limited to the assigned inspector and active inspection states.
+- Public report responses return short-lived signed GET URLs (60 seconds) for stored photos when COS is configured. The API does not return object keys.
+- Current limitation: original images are stored; automatic thumbnail/medium generation and CDN transformation are not yet implemented. Public report clients should lazy-load images. Previously issued signed URLs may remain usable until their short expiry even after a share is revoked.
+- Configure `COS_REGION`, `COS_BUCKET`, `COS_SECRET_ID`, and `COS_SECRET_KEY` in the backend secret manager. Do not commit credentials.
