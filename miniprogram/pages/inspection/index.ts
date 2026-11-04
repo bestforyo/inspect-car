@@ -1,4 +1,4 @@
-type CheckItem = { id: string; name: string; state: string; note: string };
+type CheckItem = { id: string; name: string; state: string; note: string; photos: string[] };
 const groups = [
   { id: "major", title: "重大事故检测", count: 59, items: ["右前纵梁（上）","左前纵梁（上）","右前纵梁（下）","左前纵梁（下）","右 A 柱内侧","右 A 柱外侧","右 B 柱内侧","右 B 柱外侧","右 C 柱内侧","右 C 柱外侧","左 A 柱内侧","左 A 柱外侧","左 B 柱内侧","左 C 柱内侧","左 C 柱外侧","右底边梁外侧","右底边梁内侧","左底边梁外侧","左底边梁内侧","车身底板","前围板","后围板","车顶框架","右前轮旋","左前轮旋","右后轮旋","左后轮旋","右前减振器座","左前减振器座","右后减振器座","左后减振器座","前面板","水箱框架","后备箱底板","主驾驶气囊","副驾驶气囊"] },
   { id: "water", title: "泡水检测", count: 29, items: ["副驾驶线束及插头","副驾驶座椅线束","主驾驶座椅线束","主驾驶线束及插头","左侧门槛线束","右侧门槛线束","机舱保险丝盒","行李箱保险丝盒及线束","驾驶室内保险丝盒","右前地毯","左前地毯","行李箱底板","车内棚顶","点烟器底座","仪表台骨架","副驾驶座椅骨架及滑轨","主驾驶座椅骨架及滑轨","后排座椅骨架及海绵","右 B 柱安全带及锁止机构","左 B 柱安全带及锁止机构","转向柱及踏板支架","右 A 柱夹层及周边","左 A 柱夹层及周边","右 B 柱夹层及周边","左 B 柱夹层及周边","右 C 柱夹层及周边","左 C 柱夹层及周边","底板横梁空腔内部"] },
@@ -8,7 +8,7 @@ Page({
   data: { business: "passenger", kind: "used", active: "major", groups: [] as Array<{id:string;title:string;count:number;items:CheckItem[]}>, total: 0, done: 0, progressPercent: 0, states: ["待检测","正常","喷漆","变形","拆装","锈蚀","水痕","霉斑","尘土泥沙","未配备","无法检测"] },
   onLoad(query: Record<string, string | undefined>) {
     const business = query.business || "passenger";
-    const built = groups.map(g => ({ ...g, items: g.items.map((name, i) => ({ id: g.id + "-" + i, name, state: "待检测", note: "" })) }));
+    const built = groups.map(g => ({ ...g, items: g.items.map((name, i) => ({ id: g.id + "-" + i, name, state: "待检测", note: "", photos: [] })) }));
     this.setData({ business, kind: query.kind || "used", groups: built, total: built.reduce((n,g)=>n+g.items.length,0) });
   },
   switchGroup(e: WechatMiniprogram.TouchEvent) { this.setData({ active: e.currentTarget.dataset.id }); },
@@ -27,6 +27,20 @@ Page({
       const groups=this.data.groups.map(g=>g.id===groupId?{...g,items:g.items.map(i=>i.id===itemId?{...i,note:res.content||""}:i)}:g);
       this.setData({groups});
     }});
+  },
+  addPhoto(e: WechatMiniprogram.TouchEvent) {
+    const groupId=e.currentTarget.dataset.group, itemId=e.currentTarget.dataset.item;
+    wx.chooseMedia({ count: 6, mediaType: ["image"], sourceType: ["camera", "album"], success: res => {
+      const paths=res.tempFiles.map(f=>f.tempFilePath);
+      const groups=this.data.groups.map(g=>g.id===groupId?{...g,items:g.items.map(i=>i.id===itemId?{...i,photos:[...i.photos,...paths].slice(0,9)}:i)}:g);
+      this.setData({groups});
+    }});
+  },
+  previewPhoto(e: WechatMiniprogram.TouchEvent) {
+    const groupId=e.currentTarget.dataset.group, itemId=e.currentTarget.dataset.item, current=e.currentTarget.dataset.src;
+    const group=this.data.groups.find(g=>g.id===groupId);
+    const item=group?.items.find(i=>i.id===itemId);
+    if(item) wx.previewImage({current, urls:item.photos});
   },
   submit() { wx.showModal({ title:"提交审核", content:`已记录 ${this.data.done} 项检测结果。当前为本地交互原型，提交后暂不生成正式报告。`, confirmText:"知道了", showCancel:false }); }
 });
