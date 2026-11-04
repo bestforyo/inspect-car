@@ -9,8 +9,9 @@
     <view class="type-card" data-type="passenger" bindtap="goBusiness"><view class="type-icon car">轿</view><view class="type-name">乘用车检测</view><view class="type-desc">新车 · 二手车</view><view class="type-arrow">›</view></view>
     <view class="type-card" data-type="motorcycle" bindtap="goBusiness"><view class="type-icon moto">摩</view><view class="type-name">摩托车检测</view><view class="type-desc">独立检测项目</view><view class="type-arrow">›</view></view>
   </view>
-  <view class="search-card" bindtap="goInspection"><view class="search-icon">⌕</view><view><view class="search-title">车辆信息查询</view><view class="muted small">输入 VIN / 车牌，查询车辆基础信息</view></view><view class="right-arrow">›</view></view>
-  <view class="section-title">最近任务 <text class="muted small">检测记录示例</text></view>
-  <view class="card recent" wx:for="{{recent}}" wx:key="id"><view class="recent-head"><text class="recent-car">{{item.vehicle}}</text><text class="pill">{{item.status}}</text></view><view class="recent-foot"><text class="muted">{{item.id}}</text><text class="muted">{{item.time}}</text></view></view>
+  <view class="quick-actions"><view class="quick-action primary-action" bindtap="goCreate">＋ 新建检测订单</view><view class="quick-action" bindtap="goOrders">检测订单</view><view class="quick-action" bindtap="goReview">审核工作台</view></view>
+  <view class="search-card" bindtap="goCreate"><view class="search-icon">⌕</view><view><view class="search-title">车辆信息查询</view><view class="muted small">输入 VIN / 车牌，查询车辆基础信息</view></view><view class="right-arrow">›</view></view>
+  <view class="section-title">最近任务 <text class="muted small">本机订单</text></view>
+  <view wx:if="{{recent.length===0}}" class="empty-recent">还没有检测订单，先创建一份吧</view><view class="card recent" wx:for="{{recent}}" wx:key="id" data-id="{{item.id}}" bindtap="goOrders"><view class="recent-head"><text class="recent-car">{{item.vehicle}}</text><text class="pill">{{item.status}}</text></view><view class="recent-foot"><text class="muted">{{item.id}}</text><text class="muted">{{item.time}}</text></view></view>
   <view class="foot-note">检测结论以现场证据、适用标准及审核结果为准</view>
 </view>
