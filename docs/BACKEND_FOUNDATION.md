@@ -70,3 +70,19 @@ Access tokens are expected to contain `sub`, `membershipId`, `tenantId`, `permis
 Migration `0002_tenant_composite_foreign_keys.sql` adds composite foreign keys for tenant-owned relationships. This prevents a row in one institution from referencing another institution's membership, role, vehicle, order, report, or report version even if an application query accidentally supplies a mismatched identifier. Apply migrations in numeric order.
 
 The migration is additive and retains the original single-column foreign keys. Before applying it to an existing database, check for legacy cross-tenant references; MySQL will reject the migration if any violate the new constraints. The API must still derive tenant scope from the verified membership and include tenant predicates in every read and write. Database constraints are defense in depth, not a replacement for authorization.
+
+
+## Prisma persistence and institution provisioning
+
+The backend now includes a Prisma Client service and a global database module. The first Prisma schema maps the existing `tenants` table; institution provisioning uses parameterized Prisma raw SQL inside one interactive transaction because the full legacy schema is still being incrementally mapped.
+
+`TenantProvisioningService.provision()` atomically creates:
+- an active tenant;
+- the first active user and tenant membership;
+- a protected system `tenant_admin` role;
+- the initial tenant-administration permission grants and user-role assignment;
+- an audit event identifying the provisioning action.
+
+The service requires an administrator phone number or email and validates the tenant slug. Duplicate unique values or any failed insert roll back the entire transaction. The service is registered for internal use but deliberately has no public controller yet: exposing institution creation before a verified platform-super-admin authorization mechanism exists would be unsafe. The future `POST /api/v1/tenants` endpoint must be platform-only and call this service after authorization.
+
+Set `DATABASE_URL` in the backend environment before invoking database-backed services. The API process can still start without it for the existing liveness-only health endpoint, but provisioning cannot run without a reachable MySQL database. Prisma Client generation runs during backend dependency installation; the Docker build copies the Prisma schema before installing dependencies.
