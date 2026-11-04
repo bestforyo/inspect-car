@@ -63,7 +63,7 @@ export class TenantMembershipController {
 
   @Post('roles')
   @HttpCode(HttpStatus.CREATED)
-  @RequirePermissions('tenant:members:manage')
+  @RequirePermissions('tenant:roles:manage')
   @ApiOperation({ summary: 'Create a tenant-local custom role' })
   createRole(
     @Param('tenantId') tenantId: string,
