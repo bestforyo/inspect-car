@@ -1,0 +1,59 @@
+# Backend foundation and tenancy model
+
+## Scope of this phase
+
+This branch adds a NestJS API process, validated environment configuration, a health endpoint, an OpenAPI UI at `/docs`, a container build, and the first MySQL schema proposal. It does **not** yet implement production authentication, database repositories, tenant provisioning, COS uploads, or report sharing.
+
+## Tenant and identity rules
+
+- A tenant is a customer inspection institution. A user may hold memberships in more than one tenant.
+- On institution provisioning, create the tenant, its first active membership, and a system-protected `tenant_admin` role assignment in one transaction.
+- Institution administrators manage only roles and memberships inside their own tenant. Platform super-administrator identities and permissions are separate from tenant roles.
+- All tenant-owned rows carry `tenant_id`. Derive tenant scope from the authenticated membership, never from a request body, query string, or mini-program local state.
+- For cross-table reads and writes, validate both `tenant_id` and resource ownership. Use composite tenant-aware foreign keys/unique constraints where practical, plus service-layer authorization.
+- Prevent a user from removing the final active tenant administrator. Protect system role codes and platform-managed permissions from tenant edits.
+- Audit membership changes, role/permission changes, order assignment, submissions, review decisions, report publication, share-token creation/revocation, and exports.
+
+## Templates and commercial entitlements
+
+The six initial catalogue entries are:
+- Full vehicle inspection (national standard)
+- Full vehicle inspection (group standard)
+- Four-non-compliance screening (national standard)
+- Four-non-compliance screening (group standard)
+- Three-non-compliance screening (national standard)
+- Three-non-compliance screening (group standard)
+
+These are product/template names, not verified legal mappings. Standard codes, editions, scope, inspection items, evidence requirements, and decision rules must be reviewed against the authoritative standard text before activation.
+
+Platform-owned templates may be assigned to packages. A tenant may use a template only while it has an active entitlement. A tenant-specific template copy must have an owner tenant and cannot be visible to another tenant. Published template versions are immutable. An order pins the exact `template_version_id` used when it is created; later template edits never rewrite historical orders.
+
+## Order and review workflow
+
+`draft -> in_progress -> pending_review -> approved -> published`
+
+A reviewer may return a submission: `pending_review -> needs_revision -> resubmitted -> pending_review`. Each submission increments a version. A review decision records reviewer membership, action, comment, and the submitted version. The default policy is that the institution administrator or a tenant-authorized reviewer can review; optionally prohibit self-review by the assigned inspector.
+
+Approval and publication are separate actions. Publishing creates an immutable report-version snapshot. Any later correction creates a new version and preserves the previous one.
+
+## Report sharing and photo delivery
+
+- Public report access uses a cryptographically random token; store only a hash of the token.
+- A share token points to one immutable report version and can expire, be revoked, or be password protected.
+- Public report responses must use a field allowlist and must never expose internal IDs, private contact data, COS credentials, or permanent object keys.
+- Keep original, medium, and thumbnail object keys. Report pages load thumbnails first and lazy-load images as they approach the viewport; load the original only after a user opens an image.
+- Use a CDN for image delivery. Prefer short-lived signed image URLs or an authorization-aware image endpoint so revoking the report share also prevents future image access.
+- Do not return a report's entire photo collection as full-resolution images in the initial page payload.
+
+## Database
+
+The initial schema is in `database/migrations/0001_initial_saas_schema.sql`. It is a first-pass MySQL 8 schema and must be reviewed against the eventual ORM/migration runner before production use. Tenant isolation must be enforced in the API layer in addition to the schema.
+
+## Local development
+
+1. Copy `backend/.env.example` to `backend/.env` and replace local values.
+2. Start MySQL with `docker compose up -d mysql`.
+3. Run the SQL migration manually for this scaffold, then start the API with `cd backend && npm install && npm run start:dev`.
+4. Check `GET /api/v1/health` and open `/docs`.
+
+No real credentials belong in Git. The current health endpoint is a process liveness check, not a database readiness check.
