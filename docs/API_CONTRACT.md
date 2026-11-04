@@ -33,15 +33,15 @@ The active tenant must be selected from a verified membership. A client-supplied
 
 ## Orders, inspection and review
 
-- `POST /api/v1/tenants/:tenantId/orders` — create order and pin template version.
-- `GET /api/v1/tenants/:tenantId/orders`
-- `GET /api/v1/tenants/:tenantId/orders/:orderId`
-- `PUT /api/v1/tenants/:tenantId/orders/:orderId/records/:itemId`
-- `POST /api/v1/tenants/:tenantId/orders/:orderId/submissions` — idempotent submission with a new immutable submission version.
+- `POST /api/v1/tenants/:tenantId/orders` — implemented: create a vehicle/order, pin a published template version, and validate that the institution has an active package entitlement for the template.
+- `GET /api/v1/tenants/:tenantId/orders` — implemented: tenant-scoped pagination and optional status filter.
+- `GET /api/v1/tenants/:tenantId/orders/:orderId` — implemented: tenant-scoped order, locked template items, and saved inspection records.
+- `PUT /api/v1/tenants/:tenantId/orders/:orderId/records/:itemId` — implemented: upsert a record only for an item in the order's pinned template version; assigned-inspector and state checks apply.
+- `POST /api/v1/tenants/:tenantId/orders/:orderId/submissions` — implemented: checks every template item has a record, then moves the order to the review queue or resubmitted state. Evidence-photo policy validation and immutable submission snapshots remain pending.
 - `POST /api/v1/tenants/:tenantId/orders/:orderId/reviews` — approve or return with a required comment on return.
 - `POST /api/v1/tenants/:tenantId/orders/:orderId/publication` — publish an approved report snapshot.
 
-All writes must validate tenant ownership, assignment/role permissions, order state, and optimistic version before mutation.
+Order read endpoints require `tenant:orders:read`; order creation, record updates and submission require `tenant:orders:manage`. The provisioned institution administrator receives both permissions. Order and record SQL queries always include the authenticated tenant ID; template versions are pinned at order creation and cannot be substituted while recording results. Submission currently checks record completeness, but does not yet enforce each item's evidence-photo policy, create an immutable submission snapshot, or provide reviewer approve/return endpoints. Review/publication routes remain planned.
 
 ## Photos and public report
 
