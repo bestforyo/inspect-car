@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @db.Char(36)
+  name      String   @db.VarChar(160)
+  slug      String   @unique @db.VarChar(80)
+  status    String   @default("pending") @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@map("tenants")
+}
