@@ -1,4 +1,5 @@
 import { inspectionCatalog, inspectionStates, CatalogItem } from "../../data/inspection-catalog";
+import { getOrder, updateOrder } from "../../services/order-store";
 
 type CheckItem = CatalogItem & { state: string; note: string; photos: string[] };
 type CheckGroup = { id: string; title: string; sourceCount: number; items: CheckItem[] };
@@ -6,6 +7,8 @@ const DRAFT_KEY = "inspect-car-current-draft-v1";
 
 Page({
   data: {
+    orderId: "",
+    templateUnavailable: false,
     business: "passenger",
     kind: "used",
     active: "major",
@@ -21,15 +24,16 @@ Page({
 
   onLoad(query: Record<string, string | undefined>) {
     const business = query.business || "passenger";
+    const orderId = query.orderId || "";
     const kind = query.kind || "used";
-    const saved = wx.getStorageSync(DRAFT_KEY) as { business?: string; kind?: string; groups?: CheckGroup[] } | undefined;
-    const fresh = inspectionCatalog.map(group => ({
+    const saved = wx.getStorageSync(orderId ? "inspect-car-draft-" + orderId : DRAFT_KEY) as { business?: string; kind?: string; groups?: CheckGroup[] } | undefined;
+    const fresh = business === "motorcycle" ? [] : inspectionCatalog.map(group => ({
       ...group,
       items: group.items.map(item => ({ ...item, state: "待检测", note: "", photos: [] as string[] }))
     }));
     const groups = saved?.groups?.length ? saved.groups : fresh;
     const total = groups.reduce((sum, group) => sum + group.items.length, 0);
-    this.setData({ business: saved?.business || business, kind: saved?.kind || kind, groups, total }, () => this.refreshView());
+    this.setData({ orderId, templateUnavailable: business === "motorcycle", business: saved?.business || business, kind: saved?.kind || kind, groups, total }, () => this.refreshView());
   },
 
   onHide() { this.saveDraft(); },
@@ -37,12 +41,13 @@ Page({
 
   saveDraft() {
     if (!this.data.groups.length) return;
-    wx.setStorageSync(DRAFT_KEY, {
+    wx.setStorageSync(this.data.orderId ? "inspect-car-draft-" + this.data.orderId : DRAFT_KEY, {
       business: this.data.business,
       kind: this.data.kind,
       groups: this.data.groups,
       savedAt: new Date().toISOString()
     });
+    if (this.data.orderId) { const current = getOrder(this.data.orderId); updateOrder(this.data.orderId, { ...(current && (current.status === "draft" || current.status === "in_progress" || current.status === "needs_revision") ? { status: "in_progress" as const } : {}), inspection: { groups: this.data.groups, total: this.data.total, done: this.data.done } }); }
   },
 
   refreshView() {
@@ -121,16 +126,11 @@ Page({
       mediaType: ["image"],
       sourceType: ["camera", "album"],
       success: result => {
-        const tempPaths = result.tempFiles.map(file => file.tempFilePath);
-        const persistOne = (path: string) => new Promise<string>(resolve => {
-          wx.saveFile({ tempFilePath: path, success: saved => resolve(saved.savedFilePath), fail: () => resolve(path) });
-        });
-        Promise.all(tempPaths.map(persistOne)).then(paths => {
-          const groups = this.data.groups.map(group => group.id === groupId
-            ? { ...group, items: group.items.map(item => item.id === itemId ? { ...item, photos: [...item.photos, ...paths].slice(0, 9) } : item) }
-            : group);
-          this.setData({ groups }, () => this.saveDraft());
-        });
+        const paths = result.tempFiles.map(file => file.tempFilePath);
+        const groups = this.data.groups.map(group => group.id === groupId
+          ? { ...group, items: group.items.map(item => item.id === itemId ? { ...item, photos: [...item.photos, ...paths].slice(0, 9) } : item) }
+          : group);
+        this.setData({ groups }, () => this.saveDraft());
       }
     });
   },
@@ -161,16 +161,19 @@ Page({
   },
 
   submit() {
+    if (this.data.templateUnavailable) { wx.showToast({ title: "摩托车模板尚未配置", icon: "none" }); return; }
     const pending = this.data.total - this.data.done;
     wx.showModal({
       title: "检测草稿检查",
-      content: pending ? `还有 ${pending} 项未记录。当前版本仅保存本机草稿，不会提交到审核或生成正式报告。` : "所有项目均已记录。当前版本仅保存本机草稿，不会提交到审核或生成正式报告。",
-      confirmText: "保存草稿",
+      content: pending ? `还有 ${pending} 项未记录。仍可提交演示审核，审核员可查看当前记录。` : "所有项目均已记录。将进入本机演示审核队列。",
+      confirmText: "提交审核",
       cancelText: "继续检查",
       success: result => {
         if (result.confirm) {
           this.saveDraft();
-          wx.showToast({ title: "草稿已保存在本机", icon: "success" });
+          if (this.data.orderId) updateOrder(this.data.orderId, { status: "pending_review", inspection: { groups: this.data.groups, total: this.data.total, done: this.data.done } });
+          wx.showToast({ title: this.data.orderId ? "已提交到本机审核队列" : "草稿已保存在本机", icon: "success" });
+          if (this.data.orderId) setTimeout(() => wx.navigateTo({ url: "/pages/orders/index" }), 500);
         }
       }
     });

@@ -1,8 +1,12 @@
 {
   "pages": [
     "pages/home/index",
+    "pages/vehicle/index",
     "pages/business/index",
     "pages/inspection/index",
+    "pages/orders/index",
+    "pages/review/index",
+    "pages/report/index",
     "pages/profile/index"
   ],
   "window": {
@@ -17,8 +21,14 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/home/index", "text": "工作台" },
-      { "pagePath": "pages/profile/index", "text": "我的" }
+      {
+        "pagePath": "pages/home/index",
+        "text": "工作台"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
     ]
   },
   "style": "v2",
