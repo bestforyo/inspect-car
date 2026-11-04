@@ -33,14 +33,25 @@ export class AuthService {
 
     const identity = await this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<Array<{
-        id: string; user_id: string; membership_id: string; tenant_id: string;
+        id: string; family_id: string; user_id: string; membership_id: string; tenant_id: string;
         expires_at: Date; revoked_at: Date | null;
       }>>`
-        SELECT id, user_id, membership_id, tenant_id, expires_at, revoked_at
+        SELECT id, family_id, user_id, membership_id, tenant_id, expires_at, revoked_at
         FROM auth_refresh_tokens WHERE token_hash = ${tokenHash} FOR UPDATE
       `;
       const current = rows[0];
-      if (!current || current.revoked_at || new Date(current.expires_at).getTime() <= Date.now()) {
+      if (!current) {
+        throw new UnauthorizedException('Refresh token expired, revoked, or invalid');
+      }
+      if (current.revoked_at) {
+        // A rotated token was presented again: revoke every credential in its family.
+        await tx.$executeRaw`
+          UPDATE auth_refresh_tokens SET revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+          WHERE family_id = ${current.family_id}
+        `;
+        return { reuseDetected: true as const };
+      }
+      if (new Date(current.expires_at).getTime() <= Date.now()) {
         throw new UnauthorizedException('Refresh token expired, revoked, or invalid');
       }
       const active = await this.loadActiveIdentityInTransaction(tx, current.user_id, current.tenant_id);
@@ -49,8 +60,8 @@ export class AuthService {
       }
       await tx.$executeRaw`
         INSERT INTO auth_refresh_tokens
-          (id, user_id, membership_id, tenant_id, token_hash, expires_at)
-        VALUES (${nextId}, ${current.user_id}, ${current.membership_id}, ${current.tenant_id},
+          (id, family_id, user_id, membership_id, tenant_id, token_hash, expires_at)
+        VALUES (${nextId}, ${current.family_id}, ${current.user_id}, ${current.membership_id}, ${current.tenant_id},
           ${nextHash}, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ${REFRESH_TTL_DAYS} DAY))
       `;
       await tx.$executeRaw`
@@ -59,6 +70,9 @@ export class AuthService {
       `;
       return active;
     });
+    if ('reuseDetected' in identity) {
+      throw new UnauthorizedException('Refresh token reuse detected; session family revoked');
+    }
     return this.formatSession(identity, nextToken);
   }
 
@@ -110,9 +124,10 @@ export class AuthService {
   private async issueSession(identity: AuthUser) {
     const refreshToken = randomBytes(48).toString('base64url');
     const id = randomUUID();
+    const familyId = randomUUID();
     await this.prisma.$executeRaw`
-      INSERT INTO auth_refresh_tokens (id, user_id, membership_id, tenant_id, token_hash, expires_at)
-      VALUES (${id}, ${identity.sub}, ${identity.membershipId}, ${identity.tenantId},
+      INSERT INTO auth_refresh_tokens (id, family_id, user_id, membership_id, tenant_id, token_hash, expires_at)
+      VALUES (${id}, ${familyId}, ${identity.sub}, ${identity.membershipId}, ${identity.tenantId},
         ${this.hash(refreshToken)}, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ${REFRESH_TTL_DAYS} DAY))
     `;
     return this.formatSession(identity, refreshToken);
