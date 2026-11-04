@@ -63,3 +63,10 @@ No real credentials belong in Git. The current health endpoint is a process live
 The API now includes a Passport JWT strategy, a bearer-token guard, a current-user decorator, a tenant-context guard, and a permission-code guard. The example `GET /api/v1/me` endpoint returns verified token identity. The example `GET /api/v1/tenants/:tenantId/context` requires the route tenant ID to match the verified active membership and requires `tenant:read`.
 
 Access tokens are expected to contain `sub`, `membershipId`, `tenantId`, `permissions`, and `roles` claims. These claims must only be minted by the server after loading the active user membership and effective permissions from the database. Never accept client-supplied role/permission claims or tenant IDs as authority. Every repository query and mutation must still scope by the verified tenant ID; route guards alone do not provide row-level isolation. Token issuance, refresh rotation, revocation, membership lookup, and tenant provisioning are not implemented yet.
+
+
+## Tenant-safe relational constraints
+
+Migration `0002_tenant_composite_foreign_keys.sql` adds composite foreign keys for tenant-owned relationships. This prevents a row in one institution from referencing another institution's membership, role, vehicle, order, report, or report version even if an application query accidentally supplies a mismatched identifier. Apply migrations in numeric order.
+
+The migration is additive and retains the original single-column foreign keys. Before applying it to an existing database, check for legacy cross-tenant references; MySQL will reject the migration if any violate the new constraints. The API must still derive tenant scope from the verified membership and include tenant predicates in every read and write. Database constraints are defense in depth, not a replacement for authorization.
