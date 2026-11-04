@@ -46,6 +46,7 @@ Page({
       groups: this.data.groups,
       savedAt: new Date().toISOString()
     });
+    if (this.data.orderId) updateOrder(this.data.orderId, { status: "in_progress", inspection: { groups: this.data.groups, total: this.data.total, done: this.data.done } });
   },
 
   refreshView() {
@@ -173,7 +174,9 @@ Page({
       success: result => {
         if (result.confirm) {
           this.saveDraft();
-          wx.showToast({ title: "草稿已保存在本机", icon: "success" });
+          if (this.data.orderId) updateOrder(this.data.orderId, { status: "pending_review", inspection: { groups: this.data.groups, total: this.data.total, done: this.data.done } });
+          wx.showToast({ title: this.data.orderId ? "已提交到本机审核队列" : "草稿已保存在本机", icon: "success" });
+          if (this.data.orderId) setTimeout(() => wx.navigateTo({ url: "/pages/orders/index" }), 500);
         }
       }
     });
