@@ -1,10 +1,22 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from './auth-user.interface';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
+
+class WechatLoginDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  code!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(36)
+  tenantId?: string;
+}
 
 class RefreshSessionDto {
   @IsString()
@@ -17,6 +29,13 @@ class RefreshSessionDto {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  @Post('wechat')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Exchange a WeChat mini-program login code for a linked account session' })
+  wechatLogin(@Body() body: WechatLoginDto) {
+    return this.auth.loginWithWechatCode(body.code, body.tenantId);
+  }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
