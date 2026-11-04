@@ -1,5 +1,6 @@
 <view class="page inspect-page">
-  <view class="summary card">
+  <view wx:if="{{templateUnavailable}}" class="motorcycle-notice card">摩托车专用检测模板尚未配置。为避免套用乘用车检测项目，本版本暂不开放摩托车现场录入。</view>
+  <view wx:if="{{!templateUnavailable}}" class="summary card">
     <view class="sum-top"><view><view class="sum-title">现场检测记录</view><view class="muted">{{business==='motorcycle'?'摩托车':'乘用车'}} · {{kind==='new'?'新车':'二手车'}} · 本机草稿</view></view><view class="draft-badge">自动保存</view></view>
     <view class="progress-row"><text>已记录 {{done}} / {{total}} 项</text><text class="blue">{{progressPercent}}%</text></view>
     <view class="track"><view class="fill" style="width:{{progressPercent}}%"></view></view>
@@ -27,6 +28,6 @@
     </view>
   </block>
   <view wx:if="{{!visibleGroups.length}}" class="empty">没有找到匹配的检测项目</view>
-  <button class="primary submit-btn" bindtap="submit">保存检测草稿</button>
+  <button wx:if="{{!templateUnavailable}}" class="primary submit-btn" bindtap="submit">提交审核（演示）</button>
   <view class="disclaimer">检测项目来源于竞品截图转录；标准适用性和事故判定规则尚未核验。本版本不生成正式检测结论。</view>
 </view>
