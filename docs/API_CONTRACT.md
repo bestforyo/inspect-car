@@ -1,11 +1,12 @@
 # Initial API contract (planned)
 
-This document describes the first API boundaries. Except for `GET /api/v1/health`, these routes are planned and are not implemented by this scaffold.
+This document describes the first API boundaries. Implemented routes are identified below; remaining routes are planned and are not implemented by this scaffold.
 
 ## Authentication and tenant context
 
-- `POST /api/v1/auth/wechat` — exchange a WeChat login code for a platform session.
-- `POST /api/v1/auth/refresh` — rotate refresh token.
+- `POST /api/v1/auth/wechat` — implemented: exchange a WeChat mini-program code server-side, then sign in only an already-linked user with an active institution membership. A multi-institution user must select a tenant.
+- `POST /api/v1/auth/refresh` — implemented: rotate opaque refresh token; reuse of a rotated credential revokes its token family.
+- `POST /api/v1/auth/logout` — implemented: revoke the authenticated user's supplied refresh token.
 - `GET /api/v1/me` — current user and tenant memberships.
 - `POST /api/v1/tenants` — platform-only institution provisioning; atomically creates first tenant administrator.
 - `POST /api/v1/tenants/:tenantId/invitations` — tenant-admin invitation.
