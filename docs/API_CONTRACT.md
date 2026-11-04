@@ -5,6 +5,7 @@ This document describes the first API boundaries. Implemented routes are identif
 ## Authentication and tenant context
 
 - `POST /api/v1/auth/wechat` — implemented: exchange a WeChat mini-program code server-side, then sign in only an already-linked user with an active institution membership. A multi-institution user must select a tenant.
+- `POST /api/v1/auth/accept-invitation` — implemented: exchange a fresh WeChat code and consume a one-time institution invitation token in a transaction; creates or activates the invited account/membership, binds the WeChat identity, assigns only the invitation's tenant-local roles, audits acceptance, and returns a session. The invitation token is a bearer secret and must be delivered only to the intended invitee.
 - `POST /api/v1/auth/refresh` — implemented: rotate opaque refresh token; reuse of a rotated credential revokes its token family.
 - `POST /api/v1/auth/logout` — implemented: revoke the authenticated user's supplied refresh token.
 - `GET /api/v1/me` — current user and tenant memberships.
