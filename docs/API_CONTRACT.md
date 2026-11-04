@@ -18,7 +18,7 @@ This document describes the first API boundaries. Implemented routes are identif
 - `POST /api/v1/tenants/:tenantId/members/:membershipId/roles` — implemented: replace roles for an active member.
 - `PATCH /api/v1/tenants/:tenantId/members/:membershipId/status` — implemented: suspend an active membership (the endpoint currently supports suspension only).
 
-All member-management routes require `tenant:members:manage`, JWT authentication, and a tenant ID matching the active membership. Mutations are audited; role changes and suspension protect the institution's final active system administrator.
+All routes require JWT authentication and a tenant ID matching the active membership. Member listing requires `tenant:members:read`; role listing requires `tenant:roles:read`; custom role creation requires `tenant:roles:manage`; invitation, member-role assignment, and suspension require `tenant:members:manage`. Mutations are audited; role changes and suspension protect the institution's final active system administrator. CI runs executable guard tests for tenant mismatch, missing identity, and missing permissions.
 
 The active tenant must be selected from a verified membership. A client-supplied tenant ID is only a selector and must be checked against the caller's memberships on every request.
 
