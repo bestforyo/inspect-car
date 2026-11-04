@@ -2,7 +2,7 @@
 
 ## Scope of this phase
 
-This branch adds a NestJS API process, validated environment configuration, a health endpoint, an OpenAPI UI at `/docs`, a container build, and the first MySQL schema proposal. It does **not** yet implement production authentication, database repositories, tenant provisioning, COS uploads, or report sharing.
+This branch adds a NestJS API process, validated environment configuration, a health endpoint, an OpenAPI UI at `/docs`, a container build, and the first MySQL schema proposal. It does **not** yet implement production authentication, complete HTTP controllers, COS uploads, or report sharing.
 
 ## Tenant and identity rules
 
@@ -86,3 +86,12 @@ The backend now includes a Prisma Client service and a global database module. T
 The service requires an administrator phone number or email and validates the tenant slug. Duplicate unique values or any failed insert roll back the entire transaction. The service is registered for internal use but deliberately has no public controller yet: exposing institution creation before a verified platform-super-admin authorization mechanism exists would be unsafe. The future `POST /api/v1/tenants` endpoint must be platform-only and call this service after authorization.
 
 Set `DATABASE_URL` in the backend environment before invoking database-backed services. The API process can still start without it for the existing liveness-only health endpoint, but provisioning cannot run without a reachable MySQL database. Prisma Client generation runs during backend dependency installation; the Docker build copies the Prisma schema before installing dependencies.
+
+
+## Tenant invitations and membership administration (service layer)
+
+Migration `0003_tenant_invitations.sql` adds tenant-scoped invitations. The invitation service generates a cryptographically random one-time token, persists only its SHA-256 hash, bounds expiry to 1–168 hours, supports revocation, and writes audit events. The raw token is returned once to a trusted delivery adapter; no SMS/email delivery or invitation-acceptance endpoint is included yet.
+
+The membership service also supports tenant-scoped custom role creation, role assignment, and member suspension. It rejects unknown roles/permissions, prevents tenant roles from receiving `platform:` permissions, and serializes membership mutations on the tenant row while checking that at least one active system `tenant_admin` remains. System-role editing/deletion endpoints are not exposed. These are internal service methods only; public controllers and end-to-end authentication are intentionally deferred until server-side login and database-backed membership claims are complete.
+
+Apply migrations in order: `0001`, `0002`, then `0003`. The migration chain and transactional behavior still require execution against a real MySQL 8 instance before production.
