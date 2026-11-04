@@ -1,0 +1,16 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-top"><view><view class="brand">车鉴 <text>INSPECT</text></view><view class="hero-sub">专业车辆检测 · 让每一份报告有据可依</view></view><view class="avatar">评</view></view>
+    <view class="hero-date">{{today}}</view>
+    <view class="hero-stats"><view><view class="stat-num">06</view><view class="stat-label">今日检测</view></view><view><view class="stat-num">02</view><view class="stat-label">待审核</view></view><view><view class="stat-num">128</view><view class="stat-label">累计报告</view></view></view>
+  </view>
+  <view class="section-title">开始检测 <text class="muted small">选择业务类型</text></view>
+  <view class="type-grid">
+    <view class="type-card" data-type="passenger" bindtap="goBusiness"><view class="type-icon car">轿</view><view class="type-name">乘用车检测</view><view class="type-desc">新车 · 二手车</view><view class="type-arrow">›</view></view>
+    <view class="type-card" data-type="motorcycle" bindtap="goBusiness"><view class="type-icon moto">摩</view><view class="type-name">摩托车检测</view><view class="type-desc">独立检测项目</view><view class="type-arrow">›</view></view>
+  </view>
+  <view class="search-card" bindtap="goInspection"><view class="search-icon">⌕</view><view><view class="search-title">车辆信息查询</view><view class="muted small">输入 VIN / 车牌，查询车辆基础信息</view></view><view class="right-arrow">›</view></view>
+  <view class="section-title">最近任务 <text class="muted small">检测记录示例</text></view>
+  <view class="card recent" wx:for="{{recent}}" wx:key="id"><view class="recent-head"><text class="recent-car">{{item.vehicle}}</text><text class="pill">{{item.status}}</text></view><view class="recent-foot"><text class="muted">{{item.id}}</text><text class="muted">{{item.time}}</text></view></view>
+  <view class="foot-note">检测结论以现场证据、适用标准及审核结果为准</view>
+</view>
