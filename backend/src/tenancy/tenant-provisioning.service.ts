@@ -39,6 +39,7 @@ export class TenantProvisioningService {
       'tenant:roles:read',
       'tenant:roles:manage',
       'tenant:orders:read',
+      'tenant:orders:manage',
       'tenant:reports:read',
       'tenant:reviews:manage',
     ];
