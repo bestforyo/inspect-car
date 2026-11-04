@@ -18,6 +18,18 @@ class WechatLoginDto {
   tenantId?: string;
 }
 
+class AcceptInvitationDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  code!: string;
+
+  @IsString()
+  @MinLength(32)
+  @MaxLength(200)
+  invitationToken!: string;
+}
+
 class RefreshSessionDto {
   @IsString()
   @MinLength(40)
@@ -35,6 +47,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Exchange a WeChat mini-program login code for a linked account session' })
   wechatLogin(@Body() body: WechatLoginDto) {
     return this.auth.loginWithWechatCode(body.code, body.tenantId);
+  }
+
+  @Post('accept-invitation')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Accept a one-time institution invitation and bind the authenticated WeChat identity' })
+  acceptInvitation(@Body() body: AcceptInvitationDto) {
+    return this.auth.acceptWechatInvitation(body.code, body.invitationToken);
   }
 
   @Post('refresh')
