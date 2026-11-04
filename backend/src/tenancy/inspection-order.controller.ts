@@ -8,13 +8,18 @@ import { PermissionsGuard } from './permissions.guard';
 import { TenantContextGuard } from './tenant-context.guard';
 import { InspectionOrderService } from './inspection-order.service';
 import { CreateInspectionOrderDto, SaveInspectionRecordDto } from './dto/inspection-order.dto';
+import { InspectionReviewService } from './inspection-review.service';
+import { ReviewInspectionOrderDto } from './dto/inspection-review.dto';
 
 @ApiTags('inspection-orders')
 @ApiBearerAuth()
 @Controller('tenants/:tenantId/orders')
 @UseGuards(JwtAuthGuard, TenantContextGuard, PermissionsGuard)
 export class InspectionOrderController {
-  constructor(private readonly orders: InspectionOrderService) {}
+  constructor(
+    private readonly orders: InspectionOrderService,
+    private readonly reviews: InspectionReviewService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -68,6 +73,29 @@ export class InspectionOrderController {
     @Body() body: SaveInspectionRecordDto,
   ) {
     return this.orders.saveRecord(tenantId, orderId, itemId, user.membershipId, body);
+  }
+
+  @Get(':orderId/reviews')
+  @RequirePermissions('tenant:reviews:manage')
+  @ApiOperation({ summary: 'List review history for an institution order' })
+  listReviews(@Param('tenantId') tenantId: string, @Param('orderId') orderId: string) {
+    return this.reviews.list(tenantId, orderId);
+  }
+
+  @Post(':orderId/reviews')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('tenant:reviews:manage')
+  @ApiOperation({ summary: 'Approve or return an inspection order with an audit trail' })
+  review(
+    @Param('tenantId') tenantId: string,
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body: ReviewInspectionOrderDto,
+  ) {
+    return this.reviews.review({
+      tenantId, orderId, reviewerMembershipId: user.membershipId,
+      action: body.action, comment: body.comment,
+    });
   }
 
   @Post(':orderId/submissions')
