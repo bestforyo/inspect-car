@@ -95,3 +95,12 @@ Migration `0003_tenant_invitations.sql` adds tenant-scoped invitations. The invi
 The membership service also supports tenant-scoped custom role creation, role assignment, and member suspension. It rejects unknown roles/permissions, prevents tenant roles from receiving `platform:` permissions, and serializes membership mutations on the tenant row while checking that at least one active system `tenant_admin` remains. System-role editing/deletion endpoints are not exposed. These are internal service methods only; public controllers and end-to-end authentication are intentionally deferred until server-side login and database-backed membership claims are complete.
 
 Apply migrations in order: `0001`, `0002`, then `0003`. The migration chain and transactional behavior still require execution against a real MySQL 8 instance before production.
+
+
+## Authentication sessions and refresh rotation
+
+Migration `0004_auth_refresh_tokens.sql` stores opaque refresh-token hashes, expiry, revocation, and replacement links. `AuthService` loads an active user + tenant membership from MySQL and derives effective roles/permissions from current role grants before creating a session. Access tokens are short-lived (15 minutes) and contain identity references only; the JWT strategy re-loads the active membership and grants from the database on each authenticated request, so stale token permission arrays are not trusted.
+
+The `POST /api/v1/auth/refresh` endpoint rotates a refresh token transactionally: the old token is locked and revoked while a replacement hash is inserted. `POST /api/v1/auth/logout` revokes the caller's refresh token. Only token hashes are stored. The internal `createSessionForUser(userId, tenantId)` method must be called only after a trusted identity provider has authenticated the user.
+
+**Not yet implemented:** WeChat `code2session` exchange, phone/SMS verification, account binding, a public login/session-creation endpoint, refresh-token reuse-family revocation, rate limiting, and end-to-end tests against MySQL. Do not expose `createSessionForUser` to an unauthenticated client or accept a user ID as proof of identity. Apply migration `0004` after `0003`.
