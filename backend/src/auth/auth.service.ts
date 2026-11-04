@@ -22,6 +22,57 @@ export class AuthService {
     return this.issueSession(identity);
   }
 
+  async loginWithWechatCode(code: string, tenantId?: string) {
+    if (!code || code.length > 256) {
+      throw new UnauthorizedException('Invalid WeChat login code');
+    }
+    const appId = this.config.getOrThrow<string>('WX_APP_ID');
+    const appSecret = this.config.getOrThrow<string>('WX_APP_SECRET');
+    const params = new URLSearchParams({
+      appid: appId,
+      secret: appSecret,
+      js_code: code,
+      grant_type: 'authorization_code',
+    });
+    let result: { openid?: string; errcode?: number };
+    try {
+      const response = await fetch(
+        `https://api.weixin.qq.com/sns/jscode2session?${params.toString()}`,
+        { signal: AbortSignal.timeout(8000) },
+      );
+      if (!response.ok) throw new Error('WeChat identity provider unavailable');
+      result = await response.json() as { openid?: string; errcode?: number };
+    } catch {
+      throw new UnauthorizedException('WeChat login is temporarily unavailable');
+    }
+    if (!result.openid || result.errcode) {
+      throw new UnauthorizedException('WeChat login code is invalid or expired');
+    }
+
+    const users = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id FROM users WHERE wx_openid = ${result.openid} LIMIT 1
+    `;
+    if (users.length !== 1) {
+      throw new UnauthorizedException('No account is linked to this WeChat identity; accept an institution invitation first');
+    }
+    const memberships = await this.prisma.$queryRaw<Array<{ tenant_id: string }>>`
+      SELECT m.tenant_id FROM tenant_memberships m
+      JOIN tenants t ON t.id = m.tenant_id
+      WHERE m.user_id = ${users[0].id} AND m.status = 'active' AND t.status = 'active'
+      ORDER BY m.created_at ASC
+    `;
+    const selected = tenantId
+      ? memberships.find((membership) => membership.tenant_id === tenantId)
+      : memberships.length === 1 ? memberships[0] : undefined;
+    if (!selected) {
+      if (memberships.length > 1 && !tenantId) {
+        return { requiresTenantSelection: true, tenantIds: memberships.map((membership) => membership.tenant_id) };
+      }
+      throw new UnauthorizedException('No active membership exists for the selected institution');
+    }
+    return this.issueSession(await this.loadActiveIdentity(users[0].id, selected.tenant_id));
+  }
+
   async refreshSession(rawRefreshToken: string) {
     if (!rawRefreshToken || rawRefreshToken.length < 40 || rawRefreshToken.length > 200) {
       throw new UnauthorizedException('Invalid refresh token');
