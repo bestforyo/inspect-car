@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:security": "npm run build && node --test test/security-guards.test.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
