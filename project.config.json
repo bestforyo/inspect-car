@@ -1,0 +1,15 @@
+{
+  "description": "inspect-car 微信小程序",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "miniprogram/",
+  "appid": "touristappid",
+  "projectname": "inspect-car",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "compileHotReLoad": true,
+    "minifyWXSS": true,
+    "minified": true
+  }
+}
