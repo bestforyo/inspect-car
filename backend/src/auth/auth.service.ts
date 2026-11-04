@@ -122,6 +122,9 @@ export class AuthService {
       let userId: string;
       if (users.length === 1) {
         const existing = users[0];
+        if (existing.status === 'disabled') {
+          throw new UnauthorizedException('This account has been disabled');
+        }
         if (existing.wx_openid && existing.wx_openid !== providerResult.openid) {
           throw new UnauthorizedException('This account is already linked to another WeChat identity');
         }
