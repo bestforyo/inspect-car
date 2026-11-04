@@ -2,11 +2,12 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { AuthService } from './auth.service';
 import { AuthUser } from './auth-user.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(config: ConfigService) {
+  constructor(config: ConfigService, private readonly auth: AuthService) {
     const secret = config.get<string>('JWT_ACCESS_SECRET');
     if (!secret || secret.length < 32) {
       throw new Error('JWT_ACCESS_SECRET must be configured with at least 32 characters');
@@ -19,19 +20,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: Record<string, unknown>): AuthUser {
-    const { sub, membershipId, tenantId, permissions, roles } = payload;
-    if (
-      typeof sub !== 'string' ||
-      typeof membershipId !== 'string' ||
-      typeof tenantId !== 'string' ||
-      !Array.isArray(permissions) ||
-      !permissions.every((item) => typeof item === 'string') ||
-      !Array.isArray(roles) ||
-      !roles.every((item) => typeof item === 'string')
-    ) {
+  async validate(payload: Record<string, unknown>): Promise<AuthUser> {
+    const { sub, membershipId, tenantId } = payload;
+    if (typeof sub !== 'string' || typeof membershipId !== 'string' || typeof tenantId !== 'string') {
       throw new UnauthorizedException('Invalid access token claims');
     }
-    return { sub, membershipId, tenantId, permissions, roles } as AuthUser;
+    const identity = await this.auth.loadActiveIdentity(sub, tenantId);
+    if (identity.membershipId !== membershipId) {
+      throw new UnauthorizedException('Token membership is no longer valid');
+    }
+    return identity;
   }
 }
