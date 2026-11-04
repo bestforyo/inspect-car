@@ -12,7 +12,7 @@ Page({
     keyword: "",
     groups: [] as CheckGroup[],
     visibleGroups: [] as CheckGroup[],
-    counts: [] as Array<{id:string;title:string;done:number;total:number}>,
+    counts: [{id:"major",title:"重大事故",done:0,total:59},{id:"water",title:"泡水",done:0,total:29},{id:"fire",title:"火烧",done:0,total:8}] as Array<{id:string;title:string;done:number;total:number}>,
     total: 0,
     done: 0,
     progressPercent: 0,
@@ -47,7 +47,7 @@ Page({
 
   refreshView() {
     const keyword = this.data.keyword.trim().toLowerCase();
-    const visibleGroups = this.data.groups.map(group => ({
+    const visibleGroups = this.data.groups.filter(group => group.id === this.data.active).map(group => ({
       ...group,
       items: group.items.filter(item => !keyword || item.name.toLowerCase().includes(keyword) || item.section.toLowerCase().includes(keyword))
     })).filter(group => group.items.length > 0);
@@ -66,7 +66,7 @@ Page({
     });
   },
 
-  onSearch(e: WechatMiniprogram.Input) {
+  onSearch(e: { detail: { value: string } }) {
     this.setData({ keyword: e.detail.value }, () => this.refreshView());
   },
 
