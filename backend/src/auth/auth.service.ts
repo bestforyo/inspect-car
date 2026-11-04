@@ -73,6 +73,127 @@ export class AuthService {
     return this.issueSession(await this.loadActiveIdentity(users[0].id, selected.tenant_id));
   }
 
+  async acceptWechatInvitation(code: string, rawInvitationToken: string) {
+    if (!code || code.length > 256 || !rawInvitationToken || rawInvitationToken.length < 32 || rawInvitationToken.length > 200) {
+      throw new UnauthorizedException('Invalid invitation acceptance request');
+    }
+    const appId = this.config.getOrThrow<string>('WX_APP_ID');
+    const appSecret = this.config.getOrThrow<string>('WX_APP_SECRET');
+    const params = new URLSearchParams({ appid: appId, secret: appSecret, js_code: code, grant_type: 'authorization_code' });
+    let providerResult: { openid?: string; errcode?: number };
+    try {
+      const response = await fetch(`https://api.weixin.qq.com/sns/jscode2session?${params.toString()}`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) throw new Error('WeChat identity provider unavailable');
+      providerResult = await response.json() as { openid?: string; errcode?: number };
+    } catch {
+      throw new UnauthorizedException('WeChat login is temporarily unavailable');
+    }
+    if (!providerResult.openid || providerResult.errcode) {
+      throw new UnauthorizedException('WeChat login code is invalid or expired');
+    }
+
+    const tokenHash = this.hash(rawInvitationToken);
+    const identity = await this.prisma.$transaction(async (tx) => {
+      const invitations = await tx.$queryRaw<Array<{
+        id: string; tenant_id: string; invitee_phone: string | null; invitee_email: string | null;
+        role_ids_json: unknown; expires_at: Date; accepted_at: Date | null; revoked_at: Date | null;
+        tenant_status: string;
+      }>>`
+        SELECT i.id, i.tenant_id, i.invitee_phone, i.invitee_email, i.role_ids_json,
+          i.expires_at, i.accepted_at, i.revoked_at, t.status AS tenant_status
+        FROM tenant_invitations i JOIN tenants t ON t.id = i.tenant_id
+        WHERE i.token_hash = ${tokenHash} FOR UPDATE
+      `;
+      const invitation = invitations[0];
+      if (!invitation || invitation.accepted_at || invitation.revoked_at ||
+          new Date(invitation.expires_at).getTime() <= Date.now() || invitation.tenant_status !== 'active') {
+        throw new UnauthorizedException('Invitation is invalid, expired, or revoked');
+      }
+
+      const users = await tx.$queryRaw<Array<{ id: string; wx_openid: string | null; status: string }>>`
+        SELECT id, wx_openid, status FROM users
+        WHERE (${invitation.invitee_phone} IS NOT NULL AND phone = ${invitation.invitee_phone})
+           OR (${invitation.invitee_email} IS NOT NULL AND email = ${invitation.invitee_email})
+        FOR UPDATE
+      `;
+      if (users.length > 1) throw new UnauthorizedException('Invitation contact matches conflicting accounts');
+      let userId: string;
+      if (users.length === 1) {
+        const existing = users[0];
+        if (existing.wx_openid && existing.wx_openid !== providerResult.openid) {
+          throw new UnauthorizedException('This account is already linked to another WeChat identity');
+        }
+        userId = existing.id;
+        await tx.$executeRaw`
+          UPDATE users SET wx_openid = ${providerResult.openid}, status = 'active'
+          WHERE id = ${userId} AND (wx_openid IS NULL OR wx_openid = ${providerResult.openid})
+        `;
+      } else {
+        userId = randomUUID();
+        await tx.$executeRaw`
+          INSERT INTO users (id, phone, email, display_name, wx_openid, status)
+          VALUES (${userId}, ${invitation.invitee_phone}, ${invitation.invitee_email},
+            '微信用户', ${providerResult.openid}, 'active')
+        `;
+      }
+
+      const memberships = await tx.$queryRaw<Array<{ id: string; status: string }>>`
+        SELECT id, status FROM tenant_memberships
+        WHERE tenant_id = ${invitation.tenant_id} AND user_id = ${userId} FOR UPDATE
+      `;
+      let membershipId: string;
+      if (memberships.length === 1) {
+        if (memberships[0].status !== 'invited') {
+          throw new UnauthorizedException('An active or previously closed membership already exists');
+        }
+        membershipId = memberships[0].id;
+        await tx.$executeRaw`
+          UPDATE tenant_memberships SET status = 'active', joined_at = CURRENT_TIMESTAMP
+          WHERE id = ${membershipId} AND tenant_id = ${invitation.tenant_id} AND status = 'invited'
+        `;
+      } else if (memberships.length === 0) {
+        membershipId = randomUUID();
+        await tx.$executeRaw`
+          INSERT INTO tenant_memberships (id, tenant_id, user_id, status, joined_at)
+          VALUES (${membershipId}, ${invitation.tenant_id}, ${userId}, 'active', CURRENT_TIMESTAMP)
+        `;
+      } else {
+        throw new UnauthorizedException('Membership state is inconsistent');
+      }
+
+      const roleIds = Array.isArray(invitation.role_ids_json)
+        ? invitation.role_ids_json as string[]
+        : JSON.parse(String(invitation.role_ids_json)) as string[];
+      if (!roleIds.length || roleIds.some((roleId) => typeof roleId !== 'string')) {
+        throw new UnauthorizedException('Invitation role configuration is invalid');
+      }
+      for (const roleId of roleIds) {
+        const roles = await tx.$queryRaw<Array<{ id: string }>>`
+          SELECT id FROM roles WHERE tenant_id = ${invitation.tenant_id} AND id = ${roleId}
+        `;
+        if (roles.length !== 1) throw new UnauthorizedException('An invited role is no longer available');
+        await tx.$executeRaw`
+          INSERT INTO user_roles (tenant_id, membership_id, role_id)
+          VALUES (${invitation.tenant_id}, ${membershipId}, ${roleId})
+        `;
+      }
+      await tx.$executeRaw`
+        UPDATE tenant_invitations SET accepted_at = CURRENT_TIMESTAMP
+        WHERE id = ${invitation.id} AND accepted_at IS NULL AND revoked_at IS NULL
+      `;
+      await tx.$executeRaw`
+        INSERT INTO audit_logs (id, tenant_id, actor_membership_id, action, resource_type, resource_id, metadata_json)
+        VALUES (${randomUUID()}, ${invitation.tenant_id}, ${membershipId},
+          'membership.invitation_accepted', 'tenant_invitation', ${invitation.id},
+          JSON_OBJECT('membershipId', ${membershipId}))
+      `;
+      return { userId, tenantId: invitation.tenant_id };
+    });
+    return this.issueSession(await this.loadActiveIdentity(identity.userId, identity.tenantId));
+  }
+
   async refreshSession(rawRefreshToken: string) {
     if (!rawRefreshToken || rawRefreshToken.length < 40 || rawRefreshToken.length > 200) {
       throw new UnauthorizedException('Invalid refresh token');
