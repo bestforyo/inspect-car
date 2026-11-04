@@ -1,46 +1,178 @@
-type CheckItem = { id: string; name: string; state: string; note: string; photos: string[] };
-const groups = [
-  { id: "major", title: "重大事故检测", count: 59, items: ["右前纵梁（上）","左前纵梁（上）","右前纵梁（下）","左前纵梁（下）","右 A 柱内侧","右 A 柱外侧","右 B 柱内侧","右 B 柱外侧","右 C 柱内侧","右 C 柱外侧","左 A 柱内侧","左 A 柱外侧","左 B 柱内侧","左 C 柱内侧","左 C 柱外侧","右底边梁外侧","右底边梁内侧","左底边梁外侧","左底边梁内侧","车身底板","前围板","后围板","车顶框架","右前轮旋","左前轮旋","右后轮旋","左后轮旋","右前减振器座","左前减振器座","右后减振器座","左后减振器座","前面板","水箱框架","后备箱底板","主驾驶气囊","副驾驶气囊"] },
-  { id: "water", title: "泡水检测", count: 29, items: ["副驾驶线束及插头","副驾驶座椅线束","主驾驶座椅线束","主驾驶线束及插头","左侧门槛线束","右侧门槛线束","机舱保险丝盒","行李箱保险丝盒及线束","驾驶室内保险丝盒","右前地毯","左前地毯","行李箱底板","车内棚顶","点烟器底座","仪表台骨架","副驾驶座椅骨架及滑轨","主驾驶座椅骨架及滑轨","后排座椅骨架及海绵","右 B 柱安全带及锁止机构","左 B 柱安全带及锁止机构","转向柱及踏板支架","右 A 柱夹层及周边","左 A 柱夹层及周边","右 B 柱夹层及周边","左 B 柱夹层及周边","右 C 柱夹层及周边","左 C 柱夹层及周边","底板横梁空腔内部"] },
-  { id: "fire", title: "火烧检测", count: 8, items: ["车身底板涂层","行李箱底板涂层","仪表台及附件","机舱盖隔音棉","机舱内线束","机舱内管路","防火墙隔音棉","后备箱线束及保险盒"] }
-];
+import { inspectionCatalog, inspectionStates, CatalogItem } from "../../data/inspection-catalog";
+
+type CheckItem = CatalogItem & { state: string; note: string; photos: string[] };
+type CheckGroup = { id: string; title: string; sourceCount: number; items: CheckItem[] };
+const DRAFT_KEY = "inspect-car-current-draft-v1";
+
 Page({
-  data: { business: "passenger", kind: "used", active: "major", groups: [] as Array<{id:string;title:string;count:number;items:CheckItem[]}>, total: 0, done: 0, progressPercent: 0, states: ["待检测","正常","喷漆","变形","拆装","锈蚀","水痕","霉斑","尘土泥沙","未配备","无法检测"] },
+  data: {
+    business: "passenger",
+    kind: "used",
+    active: "major",
+    keyword: "",
+    groups: [] as CheckGroup[],
+    visibleGroups: [] as CheckGroup[],
+    counts: [] as Array<{id:string;title:string;done:number;total:number}>,
+    total: 0,
+    done: 0,
+    progressPercent: 0,
+    states: inspectionStates
+  },
+
   onLoad(query: Record<string, string | undefined>) {
     const business = query.business || "passenger";
-    const built = groups.map(g => ({ ...g, items: g.items.map((name, i) => ({ id: g.id + "-" + i, name, state: "待检测", note: "", photos: [] })) }));
-    this.setData({ business, kind: query.kind || "used", groups: built, total: built.reduce((n,g)=>n+g.items.length,0) });
+    const kind = query.kind || "used";
+    const saved = wx.getStorageSync(DRAFT_KEY) as { business?: string; kind?: string; groups?: CheckGroup[] } | undefined;
+    const fresh = inspectionCatalog.map(group => ({
+      ...group,
+      items: group.items.map(item => ({ ...item, state: "待检测", note: "", photos: [] as string[] }))
+    }));
+    const groups = saved?.groups?.length ? saved.groups : fresh;
+    const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+    this.setData({ business: saved?.business || business, kind: saved?.kind || kind, groups, total }, () => this.refreshView());
   },
-  switchGroup(e: WechatMiniprogram.TouchEvent) { this.setData({ active: e.currentTarget.dataset.id }); },
+
+  onHide() { this.saveDraft(); },
+  onUnload() { this.saveDraft(); },
+
+  saveDraft() {
+    if (!this.data.groups.length) return;
+    wx.setStorageSync(DRAFT_KEY, {
+      business: this.data.business,
+      kind: this.data.kind,
+      groups: this.data.groups,
+      savedAt: new Date().toISOString()
+    });
+  },
+
+  refreshView() {
+    const keyword = this.data.keyword.trim().toLowerCase();
+    const visibleGroups = this.data.groups.map(group => ({
+      ...group,
+      items: group.items.filter(item => !keyword || item.name.toLowerCase().includes(keyword) || item.section.toLowerCase().includes(keyword))
+    })).filter(group => group.items.length > 0);
+    const counts = this.data.groups.map(group => ({
+      id: group.id,
+      title: group.title,
+      done: group.items.filter(item => item.state !== "待检测").length,
+      total: group.items.length
+    }));
+    const done = counts.reduce((sum, group) => sum + group.done, 0);
+    this.setData({
+      visibleGroups,
+      counts,
+      done,
+      progressPercent: this.data.total ? Math.round(done / this.data.total * 100) : 0
+    });
+  },
+
+  onSearch(e: WechatMiniprogram.Input) {
+    this.setData({ keyword: e.detail.value }, () => this.refreshView());
+  },
+
+  clearSearch() {
+    this.setData({ keyword: "" }, () => this.refreshView());
+  },
+
+  switchGroup(e: WechatMiniprogram.TouchEvent) {
+    this.setData({ active: e.currentTarget.dataset.id, keyword: "" }, () => this.refreshView());
+  },
+
   selectState(e: WechatMiniprogram.TouchEvent) {
     const groupId = e.currentTarget.dataset.group;
     const itemId = e.currentTarget.dataset.item;
     const state = e.currentTarget.dataset.state;
-    const groups = this.data.groups.map(g => g.id === groupId ? { ...g, items: g.items.map(i => i.id === itemId ? { ...i, state } : i) } : g);
-    const done = groups.reduce((n,g)=>n+g.items.filter(i=>i.state!=="待检测").length,0);
-    this.setData({ groups, done, progressPercent: this.data.total ? Math.round(done / this.data.total * 100) : 0 });
+    const groups = this.data.groups.map(group => group.id === groupId
+      ? { ...group, items: group.items.map(item => item.id === itemId ? { ...item, state } : item) }
+      : group);
+    this.setData({ groups }, () => { this.refreshView(); this.saveDraft(); });
   },
+
   addNote(e: WechatMiniprogram.TouchEvent) {
-    const groupId=e.currentTarget.dataset.group, itemId=e.currentTarget.dataset.item;
-    wx.showModal({ title:"补充检测说明", editable:true, placeholderText:"记录缺陷位置、程度及现场情况", success:res=>{
-      if (!res.confirm) return;
-      const groups=this.data.groups.map(g=>g.id===groupId?{...g,items:g.items.map(i=>i.id===itemId?{...i,note:res.content||""}:i)}:g);
-      this.setData({groups});
-    }});
+    const groupId = e.currentTarget.dataset.group;
+    const itemId = e.currentTarget.dataset.item;
+    const group = this.data.groups.find(item => item.id === groupId);
+    const item = group?.items.find(value => value.id === itemId);
+    wx.showModal({
+      title: "补充检测说明",
+      editable: true,
+      placeholderText: "记录缺陷位置、程度及现场情况",
+      content: item?.note || "",
+      success: result => {
+        if (!result.confirm) return;
+        const groups = this.data.groups.map(value => value.id === groupId
+          ? { ...value, items: value.items.map(check => check.id === itemId ? { ...check, note: result.content || "" } : check) }
+          : value);
+        this.setData({ groups }, () => this.saveDraft());
+      }
+    });
   },
+
   addPhoto(e: WechatMiniprogram.TouchEvent) {
-    const groupId=e.currentTarget.dataset.group, itemId=e.currentTarget.dataset.item;
-    wx.chooseMedia({ count: 6, mediaType: ["image"], sourceType: ["camera", "album"], success: res => {
-      const paths=res.tempFiles.map(f=>f.tempFilePath);
-      const groups=this.data.groups.map(g=>g.id===groupId?{...g,items:g.items.map(i=>i.id===itemId?{...i,photos:[...i.photos,...paths].slice(0,9)}:i)}:g);
-      this.setData({groups});
-    }});
+    const groupId = e.currentTarget.dataset.group;
+    const itemId = e.currentTarget.dataset.item;
+    const existing = this.data.groups.find(group => group.id === groupId)?.items.find(item => item.id === itemId)?.photos.length || 0;
+    if (existing >= 9) {
+      wx.showToast({ title: "每项最多保存 9 张照片", icon: "none" });
+      return;
+    }
+    wx.chooseMedia({
+      count: Math.min(9 - existing, 6),
+      mediaType: ["image"],
+      sourceType: ["camera", "album"],
+      success: result => {
+        const tempPaths = result.tempFiles.map(file => file.tempFilePath);
+        const persistOne = (path: string) => new Promise<string>(resolve => {
+          wx.saveFile({ tempFilePath: path, success: saved => resolve(saved.savedFilePath), fail: () => resolve(path) });
+        });
+        Promise.all(tempPaths.map(persistOne)).then(paths => {
+          const groups = this.data.groups.map(group => group.id === groupId
+            ? { ...group, items: group.items.map(item => item.id === itemId ? { ...item, photos: [...item.photos, ...paths].slice(0, 9) } : item) }
+            : group);
+          this.setData({ groups }, () => this.saveDraft());
+        });
+      }
+    });
   },
+
   previewPhoto(e: WechatMiniprogram.TouchEvent) {
-    const groupId=e.currentTarget.dataset.group, itemId=e.currentTarget.dataset.item, current=e.currentTarget.dataset.src;
-    const group=this.data.groups.find(g=>g.id===groupId);
-    const item=group?.items.find(i=>i.id===itemId);
-    if(item) wx.previewImage({current, urls:item.photos});
+    const groupId = e.currentTarget.dataset.group;
+    const itemId = e.currentTarget.dataset.item;
+    const current = e.currentTarget.dataset.src;
+    const photos = this.data.groups.find(group => group.id === groupId)?.items.find(item => item.id === itemId)?.photos || [];
+    if (photos.length) wx.previewImage({ current, urls: photos });
   },
-  submit() { wx.showModal({ title:"提交审核", content:`已记录 ${this.data.done} 项检测结果。当前为本地交互原型，提交后暂不生成正式报告。`, confirmText:"知道了", showCancel:false }); }
+
+  removePhoto(e: WechatMiniprogram.TouchEvent) {
+    const groupId = e.currentTarget.dataset.group;
+    const itemId = e.currentTarget.dataset.item;
+    const photo = e.currentTarget.dataset.src;
+    wx.showModal({
+      title: "删除照片",
+      content: "确定移除这张本地照片吗？",
+      success: result => {
+        if (!result.confirm) return;
+        const groups = this.data.groups.map(group => group.id === groupId
+          ? { ...group, items: group.items.map(item => item.id === itemId ? { ...item, photos: item.photos.filter(path => path !== photo) } : item) }
+          : group);
+        this.setData({ groups }, () => this.saveDraft());
+      }
+    });
+  },
+
+  submit() {
+    const pending = this.data.total - this.data.done;
+    wx.showModal({
+      title: "检测草稿检查",
+      content: pending ? `还有 ${pending} 项未记录。当前版本仅保存本机草稿，不会提交到审核或生成正式报告。` : "所有项目均已记录。当前版本仅保存本机草稿，不会提交到审核或生成正式报告。",
+      confirmText: "保存草稿",
+      cancelText: "继续检查",
+      success: result => {
+        if (result.confirm) {
+          this.saveDraft();
+          wx.showToast({ title: "草稿已保存在本机", icon: "success" });
+        }
+      }
+    });
+  }
 });
