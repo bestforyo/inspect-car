@@ -41,6 +41,8 @@ export class TenantProvisioningService {
       'tenant:orders:read',
       'tenant:orders:manage',
       'tenant:reports:read',
+      'tenant:reports:publish',
+      'tenant:reports:share',
       'tenant:reviews:manage',
     ];
 
