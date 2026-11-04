@@ -10,8 +10,15 @@ This document describes the first API boundaries. Implemented routes are identif
 - `POST /api/v1/auth/logout` — implemented: revoke the authenticated user's supplied refresh token.
 - `GET /api/v1/me` — current user and tenant memberships.
 - `POST /api/v1/tenants` — platform-only institution provisioning; atomically creates first tenant administrator.
-- `POST /api/v1/tenants/:tenantId/invitations` — tenant-admin invitation.
-- `GET /api/v1/tenants/:tenantId/members` — tenant-scoped membership list.
+- `GET /api/v1/tenants/:tenantId/members` — implemented: tenant-scoped membership list with assigned role codes.
+- `POST /api/v1/tenants/:tenantId/invitations` — implemented: create a one-time invitation; raw token is returned once and must be delivered securely.
+- `POST /api/v1/tenants/:tenantId/invitations/:invitationId/revoke` — implemented: revoke an unused invitation.
+- `GET /api/v1/tenants/:tenantId/roles` — implemented: list tenant-local roles and permission codes.
+- `POST /api/v1/tenants/:tenantId/roles` — implemented: create a custom tenant-local role using existing non-platform permission codes.
+- `POST /api/v1/tenants/:tenantId/members/:membershipId/roles` — implemented: replace roles for an active member.
+- `PATCH /api/v1/tenants/:tenantId/members/:membershipId/status` — implemented: suspend an active membership (the endpoint currently supports suspension only).
+
+All member-management routes require `tenant:members:manage`, JWT authentication, and a tenant ID matching the active membership. Mutations are audited; role changes and suspension protect the institution's final active system administrator.
 
 The active tenant must be selected from a verified membership. A client-supplied tenant ID is only a selector and must be checked against the caller's memberships on every request.
 
