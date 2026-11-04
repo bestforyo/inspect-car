@@ -1,0 +1,26 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/business/index",
+    "pages/inspection/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "车鉴 · INSPECT",
+    "navigationBarBackgroundColor": "#101C33",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F3F6FA"
+  },
+  "tabBar": {
+    "color": "#7B8798",
+    "selectedColor": "#2475E8",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "工作台" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}
