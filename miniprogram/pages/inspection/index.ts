@@ -168,8 +168,8 @@ Page({
     const pending = this.data.total - this.data.done;
     wx.showModal({
       title: "检测草稿检查",
-      content: pending ? `还有 ${pending} 项未记录。当前版本仅保存本机草稿，不会提交到审核或生成正式报告。` : "所有项目均已记录。当前版本仅保存本机草稿，不会提交到审核或生成正式报告。",
-      confirmText: "保存草稿",
+      content: pending ? `还有 ${pending} 项未记录。仍可提交演示审核，审核员可查看当前记录。` : "所有项目均已记录。将进入本机演示审核队列。",
+      confirmText: "提交审核",
       cancelText: "继续检查",
       success: result => {
         if (result.confirm) {
