@@ -126,16 +126,11 @@ Page({
       mediaType: ["image"],
       sourceType: ["camera", "album"],
       success: result => {
-        const tempPaths = result.tempFiles.map(file => file.tempFilePath);
-        const persistOne = (path: string) => new Promise<string>(resolve => {
-          wx.saveFile({ tempFilePath: path, success: saved => resolve(saved.savedFilePath), fail: () => resolve(path) });
-        });
-        Promise.all(tempPaths.map(persistOne)).then(paths => {
-          const groups = this.data.groups.map(group => group.id === groupId
-            ? { ...group, items: group.items.map(item => item.id === itemId ? { ...item, photos: [...item.photos, ...paths].slice(0, 9) } : item) }
-            : group);
-          this.setData({ groups }, () => this.saveDraft());
-        });
+        const paths = result.tempFiles.map(file => file.tempFilePath);
+        const groups = this.data.groups.map(group => group.id === groupId
+          ? { ...group, items: group.items.map(item => item.id === itemId ? { ...item, photos: [...item.photos, ...paths].slice(0, 9) } : item) }
+          : group);
+        this.setData({ groups }, () => this.saveDraft());
       }
     });
   },
