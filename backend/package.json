@@ -31,7 +31,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "@prisma/client": "^6.19.0",
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.0",
+    "cos-nodejs-sdk-v5": "^2.14.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
