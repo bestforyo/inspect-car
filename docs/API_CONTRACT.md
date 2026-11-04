@@ -40,7 +40,8 @@ The active tenant must be selected from a verified membership. A client-supplied
 - `POST /api/v1/tenants/:tenantId/orders/:orderId/submissions` — implemented: checks every template item has a record, then moves the order to the review queue or resubmitted state. Evidence-photo policy validation and immutable submission snapshots remain pending.
 - `GET /api/v1/tenants/:tenantId/orders/:orderId/reviews` — implemented: tenant-scoped review history.
 - `POST /api/v1/tenants/:tenantId/orders/:orderId/reviews` — implemented: approve or return; return requires a comment, assigned inspector cannot review their own assigned order.
-- `POST /api/v1/tenants/:tenantId/orders/:orderId/publication` — publish an approved report snapshot; planned.
+- `POST /api/v1/tenants/:tenantId/reports/:reportId/publication` — implemented: publish the current approved report version and record `published_at`.
+- `POST /api/v1/tenants/:tenantId/reports/:reportId/revocation` — implemented: revoke a published report and all its active share tokens.
 
 Order read endpoints require `tenant:orders:read`; order creation, record updates and submission require `tenant:orders:manage`. The provisioned institution administrator receives both permissions. Order and record SQL queries always include the authenticated tenant ID; template versions are pinned at order creation and cannot be substituted while recording results. Submission currently checks record completeness, but does not yet enforce each item's evidence-photo policy, create an immutable submission snapshot, or provide reviewer approve/return endpoints. Review/publication routes remain planned.
 
@@ -48,9 +49,9 @@ Order read endpoints require `tenant:orders:read`; order creation, record update
 
 - `POST /api/v1/tenants/:tenantId/uploads/presign` — issue short-lived upload authorization for COS.
 - `POST /api/v1/tenants/:tenantId/orders/:orderId/photos/complete` — verify uploaded object and persist metadata.
-- `POST /api/v1/tenants/:tenantId/reports/:reportId/shares` — create random share token, optional expiry/password.
-- `DELETE /api/v1/tenants/:tenantId/reports/:reportId/shares/:shareId` — revoke share.
-- `GET /api/v1/public/reports/:token` — allowlisted report snapshot without account registration.
-- `GET /api/v1/public/reports/:token/photos/:photoId` — authorize and issue short-lived image access.
+- `POST /api/v1/tenants/:tenantId/reports/:reportId/shares` — implemented: issue a 256-bit random bearer token, default 30-day expiry (configurable 1–365 days); raw token is returned once and only SHA-256 hash is stored.
+- `DELETE /api/v1/tenants/:tenantId/reports/:reportId/shares/:shareId` — implemented: revoke one share.
+- `GET /api/v1/public/reports/:token` — implemented: token-only, no-account report access; checks expiry, revocation, published report/version and active tenant; returns allowlisted snapshot data and photo availability flags, never COS object keys.
+- Photo upload, signed image delivery, rate limiting and PDF generation remain pending. The public response currently marks photo delivery as not configured; it does not fabricate image URLs.
 
-The public endpoints are token-authenticated, rate-limited, and must not accept tenant IDs as authorization. Share token values are shown once and stored hashed.
+Publication and share mutations require `tenant:reports:publish` and `tenant:reports:share` respectively. The institution administrator is provisioned with both permissions. Public access does not accept a tenant ID or require a tenant JWT; edge/API rate limiting must be enabled before production exposure.
