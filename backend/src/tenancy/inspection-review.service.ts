@@ -47,9 +47,8 @@ export class InspectionReviewService {
       if (!['pending_review', 'resubmitted'].includes(order.status)) {
         throw new ConflictException('订单当前不在待审核状态');
       }
-      if (order.created_by_membership_id === input.reviewerMembershipId ||
-          order.assigned_to_membership_id === input.reviewerMembershipId) {
-        throw new ForbiddenException('检测创建人或被指派检测师不能审核自己的订单');
+      if (order.assigned_to_membership_id === input.reviewerMembershipId) {
+        throw new ForbiddenException('被指派的检测师不能审核自己的检测订单');
       }
 
       const prior = await tx.$queryRaw<Array<{ total: bigint }>>`
