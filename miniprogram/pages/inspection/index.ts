@@ -1,5 +1,5 @@
 import { inspectionCatalog, inspectionStates, CatalogItem } from "../../data/inspection-catalog";
-import { updateOrder } from "../../services/order-store";
+import { getOrder, updateOrder } from "../../services/order-store";
 
 type CheckItem = CatalogItem & { state: string; note: string; photos: string[] };
 type CheckGroup = { id: string; title: string; sourceCount: number; items: CheckItem[] };
@@ -8,6 +8,7 @@ const DRAFT_KEY = "inspect-car-current-draft-v1";
 Page({
   data: {
     orderId: "",
+    templateUnavailable: false,
     business: "passenger",
     kind: "used",
     active: "major",
@@ -26,13 +27,13 @@ Page({
     const orderId = query.orderId || "";
     const kind = query.kind || "used";
     const saved = wx.getStorageSync(orderId ? "inspect-car-draft-" + orderId : DRAFT_KEY) as { business?: string; kind?: string; groups?: CheckGroup[] } | undefined;
-    const fresh = inspectionCatalog.map(group => ({
+    const fresh = business === "motorcycle" ? [] : inspectionCatalog.map(group => ({
       ...group,
       items: group.items.map(item => ({ ...item, state: "待检测", note: "", photos: [] as string[] }))
     }));
     const groups = saved?.groups?.length ? saved.groups : fresh;
     const total = groups.reduce((sum, group) => sum + group.items.length, 0);
-    this.setData({ orderId, business: saved?.business || business, kind: saved?.kind || kind, groups, total }, () => this.refreshView());
+    this.setData({ orderId, templateUnavailable: business === "motorcycle", business: saved?.business || business, kind: saved?.kind || kind, groups, total }, () => this.refreshView());
   },
 
   onHide() { this.saveDraft(); },
@@ -46,7 +47,7 @@ Page({
       groups: this.data.groups,
       savedAt: new Date().toISOString()
     });
-    if (this.data.orderId) updateOrder(this.data.orderId, { status: "in_progress", inspection: { groups: this.data.groups, total: this.data.total, done: this.data.done } });
+    if (this.data.orderId) { const current = getOrder(this.data.orderId); updateOrder(this.data.orderId, { ...(current && (current.status === "draft" || current.status === "in_progress" || current.status === "needs_revision") ? { status: "in_progress" as const } : {}), inspection: { groups: this.data.groups, total: this.data.total, done: this.data.done } }); }
   },
 
   refreshView() {
@@ -165,6 +166,7 @@ Page({
   },
 
   submit() {
+    if (this.data.templateUnavailable) { wx.showToast({ title: "摩托车模板尚未配置", icon: "none" }); return; }
     const pending = this.data.total - this.data.done;
     wx.showModal({
       title: "检测草稿检查",
