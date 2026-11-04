@@ -3,7 +3,7 @@ import { ArrayNotEmpty, IsArray, IsEmail, IsInt, IsOptional, IsString, IsUUID, M
 export class CreateTenantInvitationDto {
   @IsOptional()
   @IsString()
-  @Matches(/^\\+?[0-9() -]{6,32}$/)
+  @Matches(/^\+?[0-9() -]{6,32}$/)
   phone?: string;
 
   @IsOptional()
