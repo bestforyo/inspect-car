@@ -57,3 +57,9 @@ The initial schema is in `database/migrations/0001_initial_saas_schema.sql`. It 
 4. Check `GET /api/v1/health` and open `/docs`.
 
 No real credentials belong in Git. The current health endpoint is a process liveness check, not a database readiness check.
+
+## Authentication and tenant guards (scaffold)
+
+The API now includes a Passport JWT strategy, a bearer-token guard, a current-user decorator, a tenant-context guard, and a permission-code guard. The example `GET /api/v1/me` endpoint returns verified token identity. The example `GET /api/v1/tenants/:tenantId/context` requires the route tenant ID to match the verified active membership and requires `tenant:read`.
+
+Access tokens are expected to contain `sub`, `membershipId`, `tenantId`, `permissions`, and `roles` claims. These claims must only be minted by the server after loading the active user membership and effective permissions from the database. Never accept client-supplied role/permission claims or tenant IDs as authority. Every repository query and mutation must still scope by the verified tenant ID; route guards alone do not provide row-level isolation. Token issuance, refresh rotation, revocation, membership lookup, and tenant provisioning are not implemented yet.
