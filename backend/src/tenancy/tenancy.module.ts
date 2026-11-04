@@ -12,6 +12,6 @@ import { InspectionReviewService } from './inspection-review.service';
 @Module({
   controllers: [TenantContextController, TenantMembershipController, InspectionOrderController],
   providers: [PermissionsGuard, TenantContextGuard, TenantProvisioningService, TenantMembershipService, InspectionOrderService, InspectionReviewService],
-  exports: [PermissionsGuard, TenantContextGuard, TenantProvisioningService, TenantMembershipService, InspectionOrderService],
+  exports: [PermissionsGuard, TenantContextGuard, TenantProvisioningService, TenantMembershipService, InspectionOrderService, InspectionReviewService],
 })
 export class TenancyModule {}
