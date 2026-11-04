@@ -38,8 +38,9 @@ The active tenant must be selected from a verified membership. A client-supplied
 - `GET /api/v1/tenants/:tenantId/orders/:orderId` — implemented: tenant-scoped order, locked template items, and saved inspection records.
 - `PUT /api/v1/tenants/:tenantId/orders/:orderId/records/:itemId` — implemented: upsert a record only for an item in the order's pinned template version; assigned-inspector and state checks apply.
 - `POST /api/v1/tenants/:tenantId/orders/:orderId/submissions` — implemented: checks every template item has a record, then moves the order to the review queue or resubmitted state. Evidence-photo policy validation and immutable submission snapshots remain pending.
-- `POST /api/v1/tenants/:tenantId/orders/:orderId/reviews` — approve or return with a required comment on return.
-- `POST /api/v1/tenants/:tenantId/orders/:orderId/publication` — publish an approved report snapshot.
+- `GET /api/v1/tenants/:tenantId/orders/:orderId/reviews` — implemented: tenant-scoped review history.
+- `POST /api/v1/tenants/:tenantId/orders/:orderId/reviews` — implemented: approve or return; return requires a comment, assigned inspector cannot review their own assigned order.
+- `POST /api/v1/tenants/:tenantId/orders/:orderId/publication` — publish an approved report snapshot; planned.
 
 Order read endpoints require `tenant:orders:read`; order creation, record updates and submission require `tenant:orders:manage`. The provisioned institution administrator receives both permissions. Order and record SQL queries always include the authenticated tenant ID; template versions are pinned at order creation and cannot be substituted while recording results. Submission currently checks record completeness, but does not yet enforce each item's evidence-photo policy, create an immutable submission snapshot, or provide reviewer approve/return endpoints. Review/publication routes remain planned.
 
