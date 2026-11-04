@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import * as Joi from 'joi';
 import { AuthModule } from './auth/auth.module';
+import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 
@@ -19,6 +20,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
         JWT_REFRESH_SECRET: Joi.string().min(32).required(),
       }),
     }),
+    DatabaseModule,
     AuthModule,
     TenancyModule,
     HealthModule,
