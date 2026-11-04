@@ -1,0 +1,1 @@
+Page({data:{name:"检测评估师",role:"个人体验账号",stats:[{n:"12",t:"本月检测"},{n:"03",t:"待审核"},{n:"86",t:"历史报告"}],menus:["检测订单","历史报告","个人资料","机构信息","检测模板"]},onMenu(e:WechatMiniprogram.TouchEvent){wx.showToast({title:e.currentTarget.dataset.name+"：开发中",icon:"none"});}});
