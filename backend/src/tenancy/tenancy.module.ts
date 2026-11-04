@@ -10,10 +10,13 @@ import { InspectionOrderService } from './inspection-order.service';
 import { InspectionReviewService } from './inspection-review.service';
 import { ReportController, PublicReportController } from './report.controller';
 import { ReportService } from './report.service';
+import { CosStorageService } from './cos-storage.service';
+import { InspectionPhotoService } from './inspection-photo.service';
+import { InspectionPhotoController } from './inspection-photo.controller';
 
 @Module({
-  controllers: [TenantContextController, TenantMembershipController, InspectionOrderController, ReportController, PublicReportController],
-  providers: [PermissionsGuard, TenantContextGuard, TenantProvisioningService, TenantMembershipService, InspectionOrderService, InspectionReviewService, ReportService],
+  controllers: [TenantContextController, TenantMembershipController, InspectionOrderController, ReportController, PublicReportController, InspectionPhotoController],
+  providers: [PermissionsGuard, TenantContextGuard, TenantProvisioningService, TenantMembershipService, InspectionOrderService, InspectionReviewService, ReportService, CosStorageService, InspectionPhotoService],
   exports: [PermissionsGuard, TenantContextGuard, TenantProvisioningService, TenantMembershipService, InspectionOrderService, InspectionReviewService, ReportService],
 })
 export class TenancyModule {}
