@@ -15,6 +15,48 @@ export interface CreateInvitationInput {
 export class TenantMembershipService {
   constructor(private readonly prisma: PrismaService) {}
 
+
+  async listMembers(tenantId: string) {
+    return this.prisma.$queryRaw<Array<{
+      membershipId: string;
+      status: string;
+      joinedAt: Date | null;
+      displayName: string;
+      phone: string | null;
+      email: string | null;
+      roleCodes: string | null;
+    }>>`
+      SELECT m.id AS membershipId, m.status, m.joined_at AS joinedAt,
+        u.display_name AS displayName, u.phone, u.email,
+        GROUP_CONCAT(DISTINCT r.code ORDER BY r.code SEPARATOR ',') AS roleCodes
+      FROM tenant_memberships m
+      JOIN users u ON u.id = m.user_id
+      LEFT JOIN user_roles ur ON ur.tenant_id = m.tenant_id AND ur.membership_id = m.id
+      LEFT JOIN roles r ON r.tenant_id = ur.tenant_id AND r.id = ur.role_id
+      WHERE m.tenant_id = ${tenantId}
+      GROUP BY m.id, m.status, m.joined_at, u.display_name, u.phone, u.email
+      ORDER BY m.created_at DESC
+    `;
+  }
+
+  async listRoles(tenantId: string) {
+    return this.prisma.$queryRaw<Array<{
+      id: string;
+      code: string;
+      name: string;
+      isSystem: number;
+      permissionCodes: string | null;
+    }>>`
+      SELECT r.id, r.code, r.name, r.is_system AS isSystem,
+        GROUP_CONCAT(rp.permission_code ORDER BY rp.permission_code SEPARATOR ',') AS permissionCodes
+      FROM roles r
+      LEFT JOIN role_permissions rp ON rp.tenant_id = r.tenant_id AND rp.role_id = r.id
+      WHERE r.tenant_id = ${tenantId}
+      GROUP BY r.id, r.code, r.name, r.is_system
+      ORDER BY r.is_system DESC, r.name ASC
+    `;
+  }
+
   async createInvitation(input: CreateInvitationInput) {
     const phone = input.phone?.trim() || null;
     const email = input.email?.trim().toLowerCase() || null;
