@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthUser } from '../auth/auth-user.interface';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -15,6 +15,20 @@ import { AssignTenantRolesDto, CreateTenantInvitationDto, CreateTenantRoleDto } 
 @UseGuards(JwtAuthGuard, TenantContextGuard, PermissionsGuard)
 export class TenantMembershipController {
   constructor(private readonly memberships: TenantMembershipService) {}
+
+  @Get('members')
+  @RequirePermissions('tenant:members:manage')
+  @ApiOperation({ summary: 'List members and assigned roles in this institution' })
+  listMembers(@Param('tenantId') tenantId: string) {
+    return this.memberships.listMembers(tenantId);
+  }
+
+  @Get('roles')
+  @RequirePermissions('tenant:members:manage')
+  @ApiOperation({ summary: 'List tenant-local roles and their permissions' })
+  listRoles(@Param('tenantId') tenantId: string) {
+    return this.memberships.listRoles(tenantId);
+  }
 
   @Post('invitations')
   @HttpCode(HttpStatus.CREATED)
