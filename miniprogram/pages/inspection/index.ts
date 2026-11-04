@@ -5,11 +5,11 @@ const groups = [
   { id: "fire", title: "火烧检测", count: 8, items: ["车身底板涂层","行李箱底板涂层","仪表台及附件","机舱盖隔音棉","机舱内线束","机舱内管路","防火墙隔音棉","后备箱线束及保险盒"] }
 ];
 Page({
-  data: { business: "passenger", kind: "used", active: "major", groups: [] as Array<{id:string;title:string;count:number;items:CheckItem[]}>, total: 0, done: 0, states: ["待检测","正常","喷漆","变形","拆装","锈蚀","水痕","霉斑","尘土泥沙","未配备","无法检测"] },
+  data: { business: "passenger", kind: "used", active: "major", groups: [] as Array<{id:string;title:string;count:number;items:CheckItem[]}>, total: 0, done: 0, progressPercent: 0, states: ["待检测","正常","喷漆","变形","拆装","锈蚀","水痕","霉斑","尘土泥沙","未配备","无法检测"] },
   onLoad(query: Record<string, string | undefined>) {
     const business = query.business || "passenger";
     const built = groups.map(g => ({ ...g, items: g.items.map((name, i) => ({ id: g.id + "-" + i, name, state: "待检测", note: "" })) }));
-    this.setData({ business, kind: query.kind || "used", groups: built, total: built.reduce((n,g)=>n+g.count,0) });
+    this.setData({ business, kind: query.kind || "used", groups: built, total: built.reduce((n,g)=>n+g.items.length,0) });
   },
   switchGroup(e: WechatMiniprogram.TouchEvent) { this.setData({ active: e.currentTarget.dataset.id }); },
   selectState(e: WechatMiniprogram.TouchEvent) {
@@ -18,7 +18,7 @@ Page({
     const state = e.currentTarget.dataset.state;
     const groups = this.data.groups.map(g => g.id === groupId ? { ...g, items: g.items.map(i => i.id === itemId ? { ...i, state } : i) } : g);
     const done = groups.reduce((n,g)=>n+g.items.filter(i=>i.state!=="待检测").length,0);
-    this.setData({ groups, done });
+    this.setData({ groups, done, progressPercent: this.data.total ? Math.round(done / this.data.total * 100) : 0 });
   },
   addNote(e: WechatMiniprogram.TouchEvent) {
     const groupId=e.currentTarget.dataset.group, itemId=e.currentTarget.dataset.item;
