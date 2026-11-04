@@ -7,7 +7,7 @@
       <view class="check-card card" wx:for="{{item.items}}" wx:for-item="check" wx:key="id">
         <view class="check-head"><text class="check-name">{{check.name}}</text><text class="state">{{check.state}}</text></view>
         <scroll-view scroll-x class="state-scroll"><view class="state-row"><text wx:for="{{states}}" wx:for-item="s" wx:key="*this" class="state-chip {{check.state===s?'chosen':''}}" data-group="{{item.id}}" data-item="{{check.id}}" data-state="{{s}}" bindtap="selectState">{{s}}</text></view></scroll-view>
-        <view class="check-actions"><text class="muted note" data-group="{{item.id}}" data-item="{{check.id}}" bindtap="addNote">{{check.note || "＋ 添加文字说明"}}</text><text class="photo-action" bindtap="submit">＋ 照片（待接入）</text></view>
+        <view class="check-actions"><text class="muted note" data-group="{{item.id}}" data-item="{{check.id}}" bindtap="addNote">{{check.note || "＋ 添加文字说明"}}</text><text class="photo-action" data-group="{{item.id}}" data-item="{{check.id}}" bindtap="addPhoto">＋ 添加照片 {{check.photos.length}}/9</text></view>
       </view>
     </view>
   </block>
