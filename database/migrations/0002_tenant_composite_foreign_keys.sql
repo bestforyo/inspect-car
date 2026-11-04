@@ -46,6 +46,10 @@ ALTER TABLE inspection_photos
   ADD CONSTRAINT fk_photo_tenant_order
     FOREIGN KEY (tenant_id, order_id) REFERENCES orders(tenant_id, id);
 
+ALTER TABLE inspection_photos
+  ADD CONSTRAINT fk_photo_tenant_record
+    FOREIGN KEY (tenant_id, record_id) REFERENCES inspection_records(tenant_id, id);
+
 ALTER TABLE reviews
   ADD CONSTRAINT fk_review_tenant_order
     FOREIGN KEY (tenant_id, order_id) REFERENCES orders(tenant_id, id),
